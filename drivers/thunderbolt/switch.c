@@ -209,6 +209,29 @@ static int tb_init_port(struct tb_port *port)
 
 /* switch utility functions */
 
+#define case_(device_id, name) \
+	case PCI_DEVICE_ID_INTEL_##device_id: return name;
+
+static char *tb_controller_name(u16 device_id)
+{
+	switch (device_id) {
+	case_(LIGHT_PEAK,		  "Light Peak 2C CVL2510 2010")
+	case_(LIGHT_RIDGE,		 "Light Ridge 4C CV82524 2010")
+	case_(EAGLE_RIDGE,		 "Eagle Ridge 2C DSL2310 2011")
+	case_(PORT_RIDGE,		  "Port Ridge 1C DSL2210 2011")
+	case_(CACTUS_RIDGE_2C,		"Cactus Ridge 2C DSL3310 2012")
+	case_(CACTUS_RIDGE_4C,		"Cactus Ridge 4C DSL3510 2012")
+	case_(REDWOOD_RIDGE_2C_BRIDGE, "Redwood Ridge 2C DSL4410 2013")
+	case_(REDWOOD_RIDGE_4C_BRIDGE, "Redwood Ridge 4C DSL4510 2013")
+	case_(FALCON_RIDGE_2C_BRIDGE,	"Falcon Ridge 2C DSL5320 2013")
+	case_(FALCON_RIDGE_4C_BRIDGE,	"Falcon Ridge 4C DSL5520 2013")
+	case_(FALCON_RIDGE_LP_BRIDGE,	"Falcon Ridge LP DSL5110 2014")
+	case_(ALPINE_RIDGE_2C_BRIDGE,	"Alpine Ridge 2C DSL6340 2015")
+	case_(ALPINE_RIDGE_4C_BRIDGE,	"Alpine Ridge 4C DSL6540 2015")
+	default:					   return NULL;
+	}
+}
+
 static void tb_dump_switch(struct tb *tb, struct tb_regs_switch_header *sw)
 {
 	tb_info(tb,
@@ -292,7 +315,8 @@ static int tb_plug_events_active(struct tb_switch *sw, bool active)
 
 	if (active) {
 		data = data & 0xFFFFFF83;
-		if (sw->config.device_id >= 0x1567)
+		if (sw->config.device_id >=
+			   PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_2C_BRIDGE)
 			data |= 4;
 	} else {
 		data = data | 0x7c;
@@ -364,8 +388,8 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 		tb_sw_warn(sw, "unknown switch vendor id %#x\n",
 			   sw->config.vendor_id);
 
-	if (sw->config.device_id != 0x1547 && sw->config.device_id != 0x1549)
-		tb_sw_warn(sw, "unsupported switch device id %#x\n",
+	if (!(sw->controller_name = tb_controller_name(sw->config.device_id)))
+		tb_sw_warn(sw, "unknown switch device id %#x\n",
 			   sw->config.device_id);
 
 	/* upload configuration */
@@ -395,6 +419,8 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 	if (tb_drom_read(sw))
 		tb_sw_warn(sw, "tb_eeprom_read_rom failed, continuing\n");
 	tb_sw_info(sw, "uid: %#llx\n", sw->uid);
+	if (sw->controller_name)
+		tb_sw_info(sw, "Controller: %s\n", sw->controller_name);
 
 	for (i = 0; i <= sw->config.max_port_number; i++) {
 		if (sw->ports[i].disabled) {
