@@ -289,14 +289,14 @@ static bool nouveau_dsm_detect(void)
 	if (has_optimus == 1) {
 		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
 			&buffer);
-		printk(KERN_INFO "VGA switcheroo: detected Optimus DSM method %s handle\n",
+		printk(KERN_INFO "vga_switcheroo: detected Optimus DSM method %s handle\n",
 			acpi_method_name);
 		nouveau_dsm_priv.optimus_detected = true;
 		ret = true;
 	} else if (vga_count == 2 && has_dsm && guid_valid) {
 		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
 			&buffer);
-		printk(KERN_INFO "VGA switcheroo: detected DSM switching method %s handle\n",
+		printk(KERN_INFO "vga_switcheroo: detected DSM switching method %s handle\n",
 			acpi_method_name);
 		nouveau_dsm_priv.dsm_detected = true;
 		ret = true;
