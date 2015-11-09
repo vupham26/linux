@@ -36,6 +36,22 @@
 struct pci_dev;
 
 /**
+ * typedef vga_switcheroo_handler_flags_t - handler flags bitmask
+ * @VGA_SWITCHEROO_CAN_SWITCH_DDC: whether the handler is able to switch the
+ * 	DDC lines separately. This signals to clients that they should call
+ * 	drm_get_edid_switcheroo() to probe the EDID
+ * @VGA_SWITCHEROO_NEEDS_AUX_PROXY: whether the handler is unable to switch the
+ * 	AUX channel separately. This signals to clients that the inactive GPU
+ * 	should proxy AUX communication via the active GPU
+ *
+ * Handler flags bitmask. Used by handlers to declare their capabilities upon
+ * registering with vga_switcheroo.
+ */
+typedef u8 vga_switcheroo_handler_flags_t;
+#define VGA_SWITCHEROO_CAN_SWITCH_DDC	(1 << 0)
+#define VGA_SWITCHEROO_NEEDS_AUX_PROXY	(1 << 1)
+
+/**
  * enum vga_switcheroo_state - client power state
  * @VGA_SWITCHEROO_OFF: off
  * @VGA_SWITCHEROO_ON: on
@@ -132,8 +148,10 @@ int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 void vga_switcheroo_client_fb_set(struct pci_dev *dev,
 				  struct fb_info *info);
 
-int vga_switcheroo_register_handler(const struct vga_switcheroo_handler *handler);
+int vga_switcheroo_register_handler(const struct vga_switcheroo_handler *handler,
+				    vga_switcheroo_handler_flags_t handler_flags);
 void vga_switcheroo_unregister_handler(void);
+vga_switcheroo_handler_flags_t vga_switcheroo_handler_flags(void);
 
 int vga_switcheroo_process_delayed_switch(void);
 
@@ -150,11 +168,13 @@ static inline void vga_switcheroo_unregister_client(struct pci_dev *dev) {}
 static inline int vga_switcheroo_register_client(struct pci_dev *dev,
 		const struct vga_switcheroo_client_ops *ops, bool driver_power_control) { return 0; }
 static inline void vga_switcheroo_client_fb_set(struct pci_dev *dev, struct fb_info *info) {}
-static inline int vga_switcheroo_register_handler(const struct vga_switcheroo_handler *handler) { return 0; }
+static inline int vga_switcheroo_register_handler(const struct vga_switcheroo_handler *handler,
+		vga_switcheroo_handler_flags_t handler_flags) { return 0; }
 static inline int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 	const struct vga_switcheroo_client_ops *ops,
 	enum vga_switcheroo_client_id id) { return 0; }
 static inline void vga_switcheroo_unregister_handler(void) {}
+static inline vga_switcheroo_handler_flags_t vga_switcheroo_handler_flags(void) { return 0; }
 static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
 static inline enum vga_switcheroo_state vga_switcheroo_get_client_state(struct pci_dev *dev) { return VGA_SWITCHEROO_ON; }
 
