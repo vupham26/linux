@@ -712,7 +712,8 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 	}
 
 	/* are we optimus enabled? */
-	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
+	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() &&
+	    !nouveau_is_v1_dsm() && !apple_gmux_present()) {
 		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
 		pm_runtime_forbid(dev);
 		return -EBUSY;
@@ -771,7 +772,8 @@ nouveau_pmops_runtime_idle(struct device *dev)
 	}
 
 	/* are we optimus enabled? */
-	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
+	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() &&
+	    !nouveau_is_v1_dsm() && !apple_gmux_present()) {
 		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
 		pm_runtime_forbid(dev);
 		return -EBUSY;

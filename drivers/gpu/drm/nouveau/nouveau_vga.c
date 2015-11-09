@@ -1,3 +1,4 @@
+#include <linux/apple-gmux.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
@@ -97,11 +98,13 @@ nouveau_vga_init(struct nouveau_drm *drm)
 
 	if (nouveau_runtime_pm == 1)
 		runtime = true;
-	if ((nouveau_runtime_pm == -1) && (nouveau_is_optimus() || nouveau_is_v1_dsm()))
+	if (nouveau_runtime_pm == -1 && (nouveau_is_optimus() ||
+	    nouveau_is_v1_dsm() || apple_gmux_present()))
 		runtime = true;
 	vga_switcheroo_register_client(dev->pdev, &nouveau_switcheroo_ops, runtime);
 
-	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
+	if (runtime && !nouveau_is_optimus() &&
+	    (nouveau_is_v1_dsm() || apple_gmux_present()))
 		vga_switcheroo_init_domain_pm_ops(drm->dev->dev, &drm->vga_pm_domain);
 }
 
@@ -113,11 +116,13 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 
 	if (nouveau_runtime_pm == 1)
 		runtime = true;
-	if ((nouveau_runtime_pm == -1) && (nouveau_is_optimus() || nouveau_is_v1_dsm()))
+	if (nouveau_runtime_pm == -1 && (nouveau_is_optimus() ||
+	    nouveau_is_v1_dsm() || apple_gmux_present()))
 		runtime = true;
 
 	vga_switcheroo_unregister_client(dev->pdev);
-	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
+	if (runtime && !nouveau_is_optimus() &&
+	    (nouveau_is_v1_dsm() || apple_gmux_present()))
 		vga_switcheroo_fini_domain_pm_ops(drm->dev->dev);
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 }
