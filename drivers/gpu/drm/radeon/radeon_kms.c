@@ -30,6 +30,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon_asic.h"
 
+#include <linux/apple-gmux.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
@@ -112,7 +113,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	}
 
 	if ((radeon_runtime_pm != 0) &&
-	    radeon_has_atpx() &&
+	    (radeon_has_atpx() || apple_gmux_present()) &&
 	    ((flags & RADEON_IS_IGP) == 0))
 		flags |= RADEON_IS_PX;
 
