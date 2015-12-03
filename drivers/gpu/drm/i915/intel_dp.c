@@ -1182,14 +1182,12 @@ static void intel_aux_reg_init(struct intel_dp *intel_dp)
 static void
 intel_dp_aux_fini(struct intel_dp *intel_dp)
 {
-	drm_dp_aux_unregister(&intel_dp->aux);
 	kfree(intel_dp->aux.name);
 }
 
 static int
 intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	enum port port = intel_dig_port->port;
 	int ret;
@@ -1200,7 +1198,7 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	if (!intel_dp->aux.name)
 		return -ENOMEM;
 
-	intel_dp->aux.dev = dev->dev;
+	intel_dp->aux.dev = connector->base.kdev;
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 
 	DRM_DEBUG_KMS("registering %s bus for %s\n",
@@ -1215,27 +1213,15 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 		return ret;
 	}
 
-	ret = sysfs_create_link(&connector->base.kdev->kobj,
-				&intel_dp->aux.ddc.dev.kobj,
-				intel_dp->aux.ddc.dev.kobj.name);
-	if (ret < 0) {
-		DRM_ERROR("sysfs_create_link() for %s failed (%d)\n",
-			  intel_dp->aux.name, ret);
-		intel_dp_aux_fini(intel_dp);
-		return ret;
-	}
-
 	return 0;
 }
 
 static void
 intel_dp_connector_unregister(struct intel_connector *intel_connector)
 {
-	struct intel_dp *intel_dp = intel_attached_dp(&intel_connector->base);
-
-	if (!intel_connector->mst_port)
-		sysfs_remove_link(&intel_connector->base.kdev->kobj,
-				  intel_dp->aux.ddc.dev.kobj.name);
+	struct intel_dp *intel_dp =
+		enc_to_intel_dp(&intel_connector->encoder->base);
+	drm_dp_aux_unregister(&intel_dp->aux);
 	intel_connector_unregister(intel_connector);
 }
 
