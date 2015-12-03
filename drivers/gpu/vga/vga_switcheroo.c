@@ -238,12 +238,18 @@ EXPORT_SYMBOL(vga_switcheroo_register_handler);
 /**
  * vga_switcheroo_unregister_handler() - unregister handler
  *
- * Unregister handler. Disable vga_switcheroo.
+ * Reinstate power to the GPUs. Unregister handler. Disable vga_switcheroo.
  */
 void vga_switcheroo_unregister_handler(void)
 {
 	mutex_lock(&vgasr_mutex);
 	mutex_lock(&vgasr_priv.mux_hw_lock);
+	if (vgasr_priv.handler && vgasr_priv.handler->power_state) {
+		vgasr_priv.handler->power_state(VGA_SWITCHEROO_IGD,
+						VGA_SWITCHEROO_ON);
+		vgasr_priv.handler->power_state(VGA_SWITCHEROO_DIS,
+						VGA_SWITCHEROO_ON);
+	}
 	vgasr_priv.handler_flags = 0;
 	vgasr_priv.handler = NULL;
 	if (vgasr_priv.active) {
@@ -1025,7 +1031,7 @@ static void vga_switcheroo_power_switch(struct pci_dev *pdev,
 {
 	struct vga_switcheroo_client *client;
 
-	if (!vgasr_priv.handler->power_state)
+	if (!vgasr_priv.handler || !vgasr_priv.handler->power_state)
 		return;
 
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
@@ -1077,7 +1083,7 @@ static int vga_switcheroo_runtime_suspend(struct device *dev)
 	if (ret)
 		return ret;
 	mutex_lock(&vgasr_mutex);
-	if (vgasr_priv.handler->switchto) {
+	if (vgasr_priv.handler && vgasr_priv.handler->switchto) {
 		mutex_lock(&vgasr_priv.mux_hw_lock);
 		vgasr_priv.handler->switchto(VGA_SWITCHEROO_IGD);
 		mutex_unlock(&vgasr_priv.mux_hw_lock);
