@@ -103,10 +103,10 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	nvif_notify_fini(&nv_connector->hpd);
 	kfree(nv_connector->edid);
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
 	if (nv_connector->aux.transfer)
 		drm_dp_aux_unregister(&nv_connector->aux);
+	drm_connector_unregister(connector);
+	drm_connector_cleanup(connector);
 	kfree(connector);
 }
 
@@ -1156,15 +1156,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 	case DRM_MODE_CONNECTOR_eDP:
-		nv_connector->aux.dev = dev->dev;
-		nv_connector->aux.transfer = nouveau_connector_aux_xfer;
-		ret = drm_dp_aux_register(&nv_connector->aux);
-		if (ret) {
-			NV_ERROR(drm, "failed to register aux channel\n");
-			kfree(nv_connector);
-			return ERR_PTR(ret);
-		}
-
 		funcs = &nouveau_connector_funcs_dp;
 		break;
 	default:
@@ -1284,5 +1275,21 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	drm_connector_register(connector);
+
+	if (type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    type == DRM_MODE_CONNECTOR_eDP) {
+		nv_connector->aux.dev = connector->kdev;
+		nv_connector->aux.transfer = nouveau_connector_aux_xfer;
+		ret = drm_dp_aux_register(&nv_connector->aux);
+		if (ret) {
+			NV_ERROR(drm, "failed to register aux channel\n");
+			nvif_notify_fini(&nv_connector->hpd);
+			drm_connector_unregister(connector);
+			drm_connector_cleanup(connector);
+			kfree(nv_connector);
+			return ERR_PTR(ret);
+		}
+	}
+
 	return connector;
 }
