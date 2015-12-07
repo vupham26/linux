@@ -36,6 +36,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_displayid.h>
+#include <drm/drm_dp_helper.h>
 
 #define version_greater(edid, maj, min) \
 	(((edid)->version > (maj)) || \
@@ -1396,19 +1397,38 @@ EXPORT_SYMBOL(drm_get_edid);
  *
  * Wrapper around drm_get_edid() for laptops with dual GPUs using one set of
  * outputs. The wrapper adds the requisite vga_switcheroo calls to temporarily
- * switch DDC to the GPU which is retrieving EDID.
+ * switch DDC to the GPU which is retrieving EDID. If DDC can't be switched
+ * separately, it proxies the EDID probe via the active GPU.
+ *
+ * The vga_switcheroo_handler_flags() must be set to either
+ * %VGA_SWITCHEROO_CAN_SWITCH_DDC or %VGA_SWITCHEROO_NEEDS_AUX_PROXY
+ * before calling this.
  *
  * Return: Pointer to valid EDID or %NULL if we couldn't find any.
  */
 struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
 				     struct i2c_adapter *adapter)
 {
-	struct pci_dev *pdev = connector->dev->pdev;
-	struct edid *edid;
+	struct edid *edid = NULL;
 
-	vga_switcheroo_lock_ddc(pdev);
-	edid = drm_get_edid(connector, adapter);
-	vga_switcheroo_unlock_ddc(pdev);
+	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC) {
+		struct pci_dev *pdev = connector->dev->pdev;
+
+		vga_switcheroo_lock_ddc(pdev);
+		edid = drm_get_edid(connector, adapter);
+		vga_switcheroo_unlock_ddc(pdev);
+	} else
+	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_NEEDS_AUX_PROXY) {
+		struct drm_dp_aux *proxy_aux;
+
+		proxy_aux = vga_switcheroo_lock_proxy_aux();
+		if (proxy_aux && &proxy_aux->ddc != adapter) {
+			DRM_DEBUG_KMS("Using vga_switcheroo active client as proxy\n");
+			adapter = &proxy_aux->ddc;
+		}
+		edid = drm_get_edid(connector, adapter);
+		vga_switcheroo_unlock_proxy_aux();
+	}
 
 	return edid;
 }

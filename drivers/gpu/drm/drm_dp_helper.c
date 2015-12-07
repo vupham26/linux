@@ -27,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/i2c.h>
+#include <linux/vga_switcheroo.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_dp_aux_dev.h>
 #include <drm/drmP.h>
@@ -226,11 +227,55 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 }
 
 /**
+ * drm_dp_dpcd_read_switcheroo() - read from the DPCD of a vga_switcheroo output
+ * @aux: DisplayPort AUX channel
+ * @offset: address of the (first) register to read
+ * @buffer: buffer to store the register values
+ * @size: number of bytes in @buffer
+ *
+ * The function behaves identically to drm_dp_dpcd_read() unless it is called
+ * on a vga_switcheroo system and @aux belongs to the inactive GPU. In this
+ * case, the DPCD read is proxied via the active GPU's AUX channel which is
+ * obtained from vga_switcheroo. If the active GPU has not yet registered its
+ * AUX channel with vga_switcheroo, the DPCD read will time out and should be
+ * retried later.
+ *
+ * Returns the number of bytes transferred on success, or a negative error
+ * code on failure. -EIO is returned if the request was NAKed by the sink or
+ * if the retry count was exceeded. If not all bytes were transferred, this
+ * function returns -EPROTO. Errors from the underlying AUX channel transfer
+ * function, with the exception of -EBUSY (which causes the transaction to
+ * be retried), are propagated to the caller.
+ */
+static ssize_t drm_dp_dpcd_read_switcheroo(struct drm_dp_aux *aux,
+					   unsigned int offset, void *buffer,
+					   size_t size)
+{
+	struct drm_dp_aux *proxy_aux;
+	int ret;
+
+	proxy_aux = vga_switcheroo_lock_proxy_aux();
+	if (proxy_aux && proxy_aux != aux) {
+		DRM_DEBUG_KMS("Using vga_switcheroo active client as proxy\n");
+		aux = proxy_aux;
+	}
+
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
+				 size);
+
+	vga_switcheroo_unlock_proxy_aux();
+	return ret;
+}
+
+/**
  * drm_dp_dpcd_read() - read a series of bytes from the DPCD
  * @aux: DisplayPort AUX channel
  * @offset: address of the (first) register to read
  * @buffer: buffer to store the register values
  * @size: number of bytes in @buffer
+ *
+ * On vga_switcheroo systems which need to proxy DPCD accesses of the inactive
+ * GPU via the active GPU, branch out to drm_dp_dpcd_read_switcheroo().
  *
  * Returns the number of bytes transferred on success, or a negative error
  * code on failure. -EIO is returned if the request was NAKed by the sink or
@@ -242,10 +287,75 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 			 void *buffer, size_t size)
 {
+	struct drm_connector *drm_connector;
+
+	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_NEEDS_AUX_PROXY &&
+	    (drm_connector = dev_get_drvdata(aux->dev)) &&
+	    drm_connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		return drm_dp_dpcd_read_switcheroo(aux, offset, buffer, size);
+
 	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
 				  size);
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read);
+
+/**
+ * drm_dp_dpcd_write_switcheroo() - write to the DPCD of a vga_switcheroo output
+ * @aux: DisplayPort AUX channel
+ * @offset: address of the (first) register to write
+ * @buffer: buffer containing the values to write
+ * @size: number of bytes in @buffer
+ *
+ * The function behaves identically to drm_dp_dpcd_write() unless it is called
+ * on a vga_switcheroo system and @aux belongs to the inactive GPU. In this
+ * case, the data to be written is compared to the current content in
+ * the DPCD: If they match, success is pretended without writing anything.
+ * Otherwise a write is attempted using the inactive GPU's own AUX channel
+ * which is expected to fail with a timeout.
+ *
+ * The rationale is to never let the inactive client actually write to the
+ * DPCD to avoid disturbing the existing link between the active client and
+ * the panel. By pretending a successful write if DPCD content matches with
+ * what's to be written, link training by the inactive GPU should succeed
+ * if it chooses the exact same link parameters as the active GPU did.
+ *
+ * Returns the number of bytes transferred on success, or a negative error
+ * code on failure. -EIO is returned if the request was NAKed by the sink or
+ * if the retry count was exceeded. If not all bytes were transferred, this
+ * function returns -EPROTO. Errors from the underlying AUX channel transfer
+ * function, with the exception of -EBUSY (which causes the transaction to
+ * be retried), are propagated to the caller.
+ */
+static ssize_t drm_dp_dpcd_write_switcheroo(struct drm_dp_aux *aux,
+					    unsigned int offset, void *buffer,
+					    size_t size)
+{
+	struct drm_dp_aux *proxy_aux;
+	void *buffer_rd = NULL;
+
+	proxy_aux = vga_switcheroo_lock_proxy_aux();
+	if (proxy_aux && proxy_aux != aux) {
+		if (!(buffer_rd = kzalloc(size, GFP_KERNEL)))
+			goto do_write;
+		if (drm_dp_dpcd_access(proxy_aux, DP_AUX_NATIVE_READ,
+				       offset, buffer_rd, size) != size)
+			goto do_write;
+		if (memcmp(buffer, buffer_rd, size) == 0) {
+			DRM_DEBUG_KMS("Skipping write to DPCD (addr=0x%x, size=%zu)\n",
+				      offset, size);
+			vga_switcheroo_unlock_proxy_aux();
+			kfree(buffer_rd);
+			return size;
+		}
+	}
+
+do_write:
+	vga_switcheroo_unlock_proxy_aux();
+	kfree(buffer_rd);
+
+	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
+				  size);
+}
 
 /**
  * drm_dp_dpcd_write() - write a series of bytes to the DPCD
@@ -253,6 +363,9 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
  * @offset: address of the (first) register to write
  * @buffer: buffer containing the values to write
  * @size: number of bytes in @buffer
+ *
+ * On vga_switcheroo systems which need to proxy DPCD accesses of the inactive
+ * GPU via the active GPU, branch out to drm_dp_dpcd_write_switcheroo().
  *
  * Returns the number of bytes transferred on success, or a negative error
  * code on failure. -EIO is returned if the request was NAKed by the sink or
@@ -264,6 +377,13 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
 ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 			  void *buffer, size_t size)
 {
+	struct drm_connector *drm_connector;
+
+	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_NEEDS_AUX_PROXY &&
+	    (drm_connector = dev_get_drvdata(aux->dev)) &&
+	    drm_connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		return drm_dp_dpcd_write_switcheroo(aux, offset, buffer, size);
+
 	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
 				  size);
 }
