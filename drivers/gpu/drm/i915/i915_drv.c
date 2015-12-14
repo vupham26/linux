@@ -35,9 +35,12 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+#include <linux/apple-gmux.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/vgaarb.h>
+#include <linux/vga_switcheroo.h>
 #include <drm/drm_crtc_helper.h>
 
 static struct drm_driver driver;
@@ -966,6 +969,16 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
+
+	/*
+	 * apple-gmux is needed on dual GPU MacBook Pro
+	 * to probe the panel if we're the inactive GPU.
+	 */
+	if (apple_gmux_present() && pdev != vga_default_device() &&
+	    !vga_switcheroo_handler_flags()) {
+		DRM_INFO("Probe deferred until apple-gmux driver is ready\n");
+		return -EPROBE_DEFER;
+	}
 
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
