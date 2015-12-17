@@ -56,6 +56,7 @@ struct nvkm_i2c_aux {
 	struct mutex mutex;
 	struct list_head head;
 	struct i2c_adapter i2c;
+	void *drm_dp_aux; /* for AUX proxying on dual GPU laptops */
 
 	u32 intr;
 };
@@ -122,6 +123,82 @@ nvkm_wri2cr(struct i2c_adapter *adap, u8 addr, u8 reg, u8 val)
 	return 0;
 }
 
+/*
+ * Proxying the AUX channel on dual GPU laptops:
+ *
+ * On read, access the AUX channel with drm_dp_dpcd_read() which will
+ * automatically proxy the communication via the active GPU if necessary.
+ * If that fails, fall back to accessing the AUX channel directly.
+ *
+ * On write, if we're the inactive GPU, compare the data to be written
+ * with what's currently in the DPCD and if it's identical, skip the
+ * write. If that fails, fall back to accessing the AUX channel directly.
+ */
+
+#if IS_ENABLED(CONFIG_DRM_KMS_HELPER) && !defined(__NVKM_I2C_PAD_H__)
+#include <linux/vga_switcheroo.h>
+#include <drm/drm_dp_helper.h>
+#include <subdev/i2c/pad.h>
+
+static inline int
+drm_rdaux(struct nvkm_i2c_aux *aux, u32 addr, u8 *data, u8 size)
+{
+	if (!aux->drm_dp_aux ||
+	    !(vga_switcheroo_handler_flags() & VGA_SWITCHEROO_NEEDS_AUX_PROXY))
+		return -ENODEV;
+
+	return drm_dp_dpcd_read(aux->drm_dp_aux, addr, data, size);
+
+}
+
+static inline int
+nvkm_wraux_skip(struct nvkm_i2c_aux *aux, u32 addr, u8 *data, u8 size)
+{
+	struct drm_dp_aux *proxy_aux;
+	u8 *data_rd = NULL;
+
+	if (!aux->drm_dp_aux ||
+	    !(vga_switcheroo_handler_flags() & VGA_SWITCHEROO_NEEDS_AUX_PROXY))
+		return -ENODEV;
+
+	proxy_aux = vga_switcheroo_lock_proxy_aux();
+	if (!proxy_aux || proxy_aux == aux->drm_dp_aux)
+		goto do_write;
+	if (!(data_rd = kzalloc(size, GFP_KERNEL)))
+		goto do_write;
+	if (drm_dp_dpcd_read(aux->drm_dp_aux, addr, data_rd, size) != size)
+		goto do_write;
+	if (memcmp(data, data_rd, size) == 0) {
+		nvkm_debug(&aux->pad->i2c->subdev,
+			   "Skipping write to DPCD (addr=0x%x, size=%u)\n",
+			   addr, size);
+		vga_switcheroo_unlock_proxy_aux();
+		kfree(data_rd);
+		return 0;
+	}
+
+do_write:
+	vga_switcheroo_unlock_proxy_aux();
+	kfree(data_rd);
+	return -ENODEV;
+}
+
+#else /* IS_ENABLED(CONFIG_DRM_KMS_HELPER) */
+
+static inline int
+drm_rdaux(struct nvkm_i2c_aux *aux, u32 addr, u8 *data, u8 size)
+{
+	return -ENODEV;
+}
+
+static inline int
+nvkm_wraux_skip(struct nvkm_i2c_aux *aux, u32 addr, u8 *data, u8 size)
+{
+	return -ENODEV;
+}
+
+#endif /* IS_ENABLED(CONFIG_DRM_KMS_HELPER) */
+
 static inline bool
 nvkm_probe_i2c(struct i2c_adapter *adap, u8 addr)
 {
@@ -131,7 +208,12 @@ nvkm_probe_i2c(struct i2c_adapter *adap, u8 addr)
 static inline int
 nvkm_rdaux(struct nvkm_i2c_aux *aux, u32 addr, u8 *data, u8 size)
 {
-	int ret = nvkm_i2c_aux_acquire(aux);
+	int ret;
+
+	if (drm_rdaux(aux, addr, data, size) == size)
+		return 0;
+
+	ret = nvkm_i2c_aux_acquire(aux);
 	if (ret == 0) {
 		ret = nvkm_i2c_aux_xfer(aux, true, 9, addr, data, size);
 		nvkm_i2c_aux_release(aux);
@@ -142,7 +224,12 @@ nvkm_rdaux(struct nvkm_i2c_aux *aux, u32 addr, u8 *data, u8 size)
 static inline int
 nvkm_wraux(struct nvkm_i2c_aux *aux, u32 addr, u8 *data, u8 size)
 {
-	int ret = nvkm_i2c_aux_acquire(aux);
+	int ret;
+
+	if (nvkm_wraux_skip(aux, addr, data, size) == 0)
+		return 0;
+
+	ret = nvkm_i2c_aux_acquire(aux);
 	if (ret == 0) {
 		ret = nvkm_i2c_aux_xfer(aux, true, 8, addr, data, size);
 		nvkm_i2c_aux_release(aux);

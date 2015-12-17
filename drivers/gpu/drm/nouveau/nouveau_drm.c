@@ -319,6 +319,9 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 		DRM_INFO("Probe deferred until apple-gmux driver is ready\n");
 		return -EPROBE_DEFER;
 	}
+	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_NEEDS_AUX_PROXY &&
+	    vga_default_device() != pdev && !vga_switcheroo_proxy_aux_ready())
+		return -EPROBE_DEFER;
 
 	/* remove conflicting drivers (vesafb, efifb etc) */
 	aper = alloc_apertures(3);

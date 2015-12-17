@@ -104,7 +104,7 @@ done:
 	return ret;
 }
 
-static void
+void
 nvkm_output_dp_enable(struct nvkm_output_dp *outp, bool enable)
 {
 	struct nvkm_i2c_aux *aux = outp->aux;

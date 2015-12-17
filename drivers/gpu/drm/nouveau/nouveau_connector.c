@@ -103,8 +103,10 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	nvif_notify_fini(&nv_connector->hpd);
 	kfree(nv_connector->edid);
-	if (nv_connector->aux.transfer)
+	if (nv_connector->aux.transfer) {
+		vga_switcheroo_set_aux(connector->dev->pdev, NULL);
 		drm_dp_aux_unregister(&nv_connector->aux);
+	}
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
@@ -271,9 +273,12 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 
 	nv_encoder = nouveau_connector_ddc_detect(connector);
 	if (nv_encoder && (i2c = nv_encoder->i2c) != NULL) {
-		if ((vga_switcheroo_handler_flags() &
-		     VGA_SWITCHEROO_CAN_SWITCH_DDC) &&
-		    nv_connector->type == DCB_CONNECTOR_LVDS)
+		if (((vga_switcheroo_handler_flags() &
+		      VGA_SWITCHEROO_CAN_SWITCH_DDC) &&
+		     nv_connector->type == DCB_CONNECTOR_LVDS) ||
+		    ((vga_switcheroo_handler_flags() &
+		      VGA_SWITCHEROO_NEEDS_AUX_PROXY) &&
+		     nv_connector->type == DCB_CONNECTOR_eDP))
 			nv_connector->edid = drm_get_edid_switcheroo(connector,
 								     i2c);
 		else

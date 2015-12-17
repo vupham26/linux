@@ -23,6 +23,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/vga_switcheroo.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -2087,6 +2088,7 @@ static const struct drm_encoder_funcs nv50_sor_func = {
 static int
 nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
@@ -2130,6 +2132,13 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	drm_encoder_helper_add(encoder, &nv50_sor_hfunc);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
+
+	if (nv_connector->type == DCB_CONNECTOR_eDP && nv_encoder->aux) {
+		nv_encoder->aux->drm_dp_aux = &nv_connector->aux;
+		vga_switcheroo_set_aux(connector->dev->pdev,
+				       &nv_connector->aux);
+	}
+
 	return 0;
 }
 

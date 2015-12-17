@@ -44,6 +44,7 @@ struct nvkm_output_dp_func {
 };
 
 int nvkm_output_dp_train(struct nvkm_output *, u32 rate, bool wait);
+void nvkm_output_dp_enable(struct nvkm_output_dp *, bool enable);
 
 int nvkm_output_dp_ctor(const struct nvkm_output_dp_func *, struct nvkm_disp *,
 			int index, struct dcb_output *, struct nvkm_i2c_aux *,

@@ -30,6 +30,26 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
+#include <engine/disp.h>
+#include <engine/disp/outpdp.h>
+#include <subdev/i2c.h>
+
+static void
+nouveau_dp_check_link_training(struct nouveau_encoder *nv_encoder)
+{
+	struct nvkm_disp *disp = nv_encoder->aux->pad->i2c->subdev.device->disp;
+	struct nvkm_output *outp;
+	struct nvkm_output_dp *outpdp;
+
+	list_for_each_entry(outp, &disp->outp, head)
+		if (outp->info.index == nv_encoder->dcb->index)
+			break;
+
+	outpdp = nvkm_output_dp(outp);
+	if (!atomic_read(&outpdp->lt.done))
+		nvkm_output_dp_enable(outpdp, true);
+}
+
 static void
 nouveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_aux *aux, u8 *dpcd)
 {
@@ -84,5 +104,6 @@ nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
 
 	nouveau_dp_probe_oui(dev, aux, dpcd);
+	nouveau_dp_check_link_training(nv_encoder);
 	return 0;
 }
