@@ -30,6 +30,7 @@
 #include <linux/export.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/vga_switcheroo.h>
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
@@ -1182,6 +1183,11 @@ static void intel_aux_reg_init(struct intel_dp *intel_dp)
 static void
 intel_dp_aux_fini(struct intel_dp *intel_dp)
 {
+	struct drm_connector *connector = &intel_dp->attached_connector->base;
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		vga_switcheroo_set_aux(connector->dev->pdev, NULL);
+
 	kfree(intel_dp->aux.name);
 }
 
@@ -1212,6 +1218,10 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 		kfree(intel_dp->aux.name);
 		return ret;
 	}
+
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
+		vga_switcheroo_set_aux(connector->base.dev->pdev,
+				       &intel_dp->aux);
 
 	return 0;
 }
@@ -5748,7 +5758,10 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	pps_unlock(intel_dp);
 
 	mutex_lock(&dev->mode_config.mutex);
-	edid = drm_get_edid(connector, &intel_dp->aux.ddc);
+	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_NEEDS_AUX_PROXY)
+		edid = drm_get_edid_switcheroo(connector, &intel_dp->aux.ddc);
+	else
+		edid = drm_get_edid(connector, &intel_dp->aux.ddc);
 	if (edid) {
 		if (drm_add_edid_modes(connector, edid)) {
 			drm_mode_connector_update_edid_property(connector,

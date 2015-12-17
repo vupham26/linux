@@ -979,6 +979,9 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		DRM_INFO("Probe deferred until apple-gmux driver is ready\n");
 		return -EPROBE_DEFER;
 	}
+	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_NEEDS_AUX_PROXY &&
+	    pdev != vga_default_device() && !vga_switcheroo_proxy_aux_ready())
+		return -EPROBE_DEFER;
 
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
