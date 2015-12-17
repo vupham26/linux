@@ -41,6 +41,7 @@
 #include <linux/uaccess.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
+#include <drm/drm_dp_helper.h>
 
 /**
  * DOC: Overview
@@ -90,6 +91,7 @@
  * struct vga_switcheroo_client - registered client
  * @pdev: client pci device
  * @fb_info: framebuffer to which console is remapped on switching
+ * @aux: aux channel between client and panel (if connected with eDP)
  * @pwr_state: current power state
  * @ops: client callbacks
  * @id: client identifier. Determining the id requires the handler,
@@ -102,12 +104,13 @@
  * @list: client list
  *
  * Registered client. A client can be either a GPU or an audio device on a GPU.
- * For audio clients, the @fb_info, @active and @driver_power_control members
- * are bogus.
+ * For audio clients, the @fb_info, @aux, @active and @driver_power_control
+ * members are bogus.
  */
 struct vga_switcheroo_client {
 	struct pci_dev *pdev;
 	struct fb_info *fb_info;
+	struct drm_dp_aux *aux;
 	enum vga_switcheroo_state pwr_state;
 	const struct vga_switcheroo_client_ops *ops;
 	enum vga_switcheroo_client_id id;
@@ -410,6 +413,7 @@ void vga_switcheroo_unregister_client(struct pci_dev *pdev)
 	struct vga_switcheroo_client *client;
 
 	mutex_lock(&vgasr_mutex);
+	mutex_lock(&vgasr_priv.mux_hw_lock);
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
 	if (client) {
 		if (client_is_vga(client))
@@ -422,6 +426,7 @@ void vga_switcheroo_unregister_client(struct pci_dev *pdev)
 		vga_switcheroo_debugfs_fini(&vgasr_priv);
 		vgasr_priv.active = false;
 	}
+	mutex_unlock(&vgasr_priv.mux_hw_lock);
 	mutex_unlock(&vgasr_mutex);
 }
 EXPORT_SYMBOL(vga_switcheroo_unregister_client);
@@ -516,6 +521,93 @@ int vga_switcheroo_unlock_ddc(struct pci_dev *pdev)
 	return ret;
 }
 EXPORT_SYMBOL(vga_switcheroo_unlock_ddc);
+
+/**
+ * vga_switcheroo_set_aux() - set aux channel of a given client
+ * @pdev: client pci device
+ * @aux: aux channel between client and panel
+ *
+ * Store the aux channel between a given client and the panel in
+ * vga_switcheroo. Another client may then obtain the aux channel
+ * and use it to proxy DPCD accesses via the active client.
+ *
+ * Proxying is meant for platforms which are not capable of switching
+ * the AUX channel separately from the main link. Clients may recognize
+ * such platforms by the handler flag %VGA_SWITCHEROO_NEEDS_AUX_PROXY.
+ */
+void vga_switcheroo_set_aux(struct pci_dev *pdev, struct drm_dp_aux *aux)
+{
+	struct vga_switcheroo_client *client;
+
+	mutex_lock(&vgasr_mutex);
+	client = find_client_from_pci(&vgasr_priv.clients, pdev);
+	if (client)
+		client->aux = aux;
+	mutex_unlock(&vgasr_mutex);
+}
+EXPORT_SYMBOL(vga_switcheroo_set_aux);
+
+/**
+ * vga_switcheroo_lock_proxy_aux() - obtain active client's aux channel
+ *
+ * Obtain the active client's aux channel to be used for proxying.
+ * Prevent the handler from switching to a different client and
+ * prevent the active client from unregistering.
+ *
+ * The active client's aux channel must afterwards be released by calling
+ * vga_switcheroo_unlock_proxy_aux(), even if this function returns %NULL.
+ *
+ * Return: aux channel between active client and panel. If the active client
+ * has not registered with vga_switcheroo or has not set its aux channel,
+ * %NULL is returned.
+ */
+struct drm_dp_aux *vga_switcheroo_lock_proxy_aux(void)
+{
+	struct vga_switcheroo_client *active;
+
+	mutex_lock(&vgasr_priv.mux_hw_lock);
+	active = find_active_client(&vgasr_priv.clients);
+	if (active)
+		return active->aux;
+	return NULL;
+}
+EXPORT_SYMBOL(vga_switcheroo_lock_proxy_aux);
+
+/**
+ * vga_switcheroo_unlock_proxy_aux() - release active client's aux channel
+ *
+ * Release the active client's aux channel after calling
+ * vga_switcheroo_lock_proxy_aux() and using it for proxying. This must be
+ * called even if vga_switcheroo_lock_proxy_aux() returned %NULL.
+ * Invoking this function without calling vga_switcheroo_lock_proxy_aux()
+ * first is not allowed.
+ */
+void vga_switcheroo_unlock_proxy_aux(void)
+{
+	WARN_ON_ONCE(!mutex_is_locked(&vgasr_priv.mux_hw_lock));
+	mutex_unlock(&vgasr_priv.mux_hw_lock);
+}
+EXPORT_SYMBOL(vga_switcheroo_unlock_proxy_aux);
+
+/**
+ * vga_switcheroo_proxy_aux_ready() - detect availability of an aux proxy
+ *
+ * DRM drivers may call this from their ->probe callback if they have
+ * determined that aux proxying is needed, and defer probing if the
+ * active client has not yet stored its aux channel in vga_switcheroo.
+ */
+bool vga_switcheroo_proxy_aux_ready(void)
+{
+	struct vga_switcheroo_client *active;
+	bool ready;
+
+	mutex_lock(&vgasr_mutex);
+	active = find_active_client(&vgasr_priv.clients);
+	ready = active && active->aux;
+	mutex_unlock(&vgasr_mutex);
+	return ready;
+}
+EXPORT_SYMBOL(vga_switcheroo_proxy_aux_ready);
 
 /**
  * DOC: Manual switching and manual power control

@@ -32,6 +32,7 @@
 #define _LINUX_VGA_SWITCHEROO_H_
 
 #include <linux/fb.h>
+#include <drm/drm_dp_helper.h>
 
 struct pci_dev;
 
@@ -158,6 +159,10 @@ void vga_switcheroo_unregister_handler(void);
 vga_switcheroo_handler_flags_t vga_switcheroo_handler_flags(void);
 int vga_switcheroo_lock_ddc(struct pci_dev *pdev);
 int vga_switcheroo_unlock_ddc(struct pci_dev *pdev);
+void vga_switcheroo_set_aux(struct pci_dev *pdev, struct drm_dp_aux *aux);
+struct drm_dp_aux *vga_switcheroo_lock_proxy_aux(void);
+void vga_switcheroo_unlock_proxy_aux(void);
+bool vga_switcheroo_proxy_aux_ready(void);
 
 int vga_switcheroo_process_delayed_switch(void);
 
@@ -183,6 +188,10 @@ static inline void vga_switcheroo_unregister_handler(void) {}
 static inline vga_switcheroo_handler_flags_t vga_switcheroo_handler_flags(void) { return 0; }
 static inline int vga_switcheroo_lock_ddc(struct pci_dev *pdev) { return -ENODEV; }
 static inline int vga_switcheroo_unlock_ddc(struct pci_dev *pdev) { return -ENODEV; }
+static inline void vga_switcheroo_set_aux(struct pci_dev *pdev, struct drm_dp_aux *aux) {}
+static inline struct drm_dp_aux *vga_switcheroo_lock_proxy_aux(void) { return NULL; }
+static inline void vga_switcheroo_unlock_proxy_aux(void) {}
+static inline bool vga_switcheroo_proxy_aux_ready(void) { return false; }
 static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
 static inline enum vga_switcheroo_state vga_switcheroo_get_client_state(struct pci_dev *dev) { return VGA_SWITCHEROO_ON; }
 
