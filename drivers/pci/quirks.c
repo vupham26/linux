@@ -3239,7 +3239,8 @@ static void quirk_apple_wait_for_thunderbolt(struct pci_dev *dev)
 	if (!nhi)
 		goto out;
 	if (nhi->vendor != PCI_VENDOR_ID_INTEL
-		    || (nhi->device != PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C &&
+		    || (nhi->device != PCI_DEVICE_ID_INTEL_LIGHT_RIDGE &&
+			nhi->device != PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C &&
 			nhi->device != PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI)
 		    || nhi->subsystem_vendor != 0x2222
 		    || nhi->subsystem_device != 0x1111)
@@ -3250,6 +3251,9 @@ out:
 	pci_dev_put(nhi);
 	pci_dev_put(sibling);
 }
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_INTEL,
+			       PCI_DEVICE_ID_INTEL_LIGHT_RIDGE,
+			       quirk_apple_wait_for_thunderbolt);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_INTEL,
 			       PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C,
 			       quirk_apple_wait_for_thunderbolt);
@@ -3284,6 +3288,9 @@ static void quirk_apple_thunderbolt_runpm(struct pci_dev *dev)
 	bridge_pm_domain->ops.complete = NULL;
 	dev_pm_domain_set(&dev->dev, bridge_pm_domain);
 }
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_INTEL,
+			 PCI_DEVICE_ID_INTEL_LIGHT_RIDGE,
+			 quirk_apple_thunderbolt_runpm);
 DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_INTEL,
 			 PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C,
 			 quirk_apple_thunderbolt_runpm);
