@@ -292,14 +292,8 @@ static int tb_plug_events_active(struct tb_switch *sw, bool active)
 
 	if (active) {
 		data = data & 0xFFFFFF83;
-		switch (sw->config.device_id) {
-		case 0x1513:
-		case 0x151a:
-		case 0x1549:
-			break;
-		default:
+		if (sw->config.device_id >= 0x1567)
 			data |= 4;
-		}
 	} else {
 		data = data | 0x7c;
 	}
