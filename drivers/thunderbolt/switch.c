@@ -377,6 +377,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 			   sw->config.vendor_id);
 
 	if (sw->config.device_id != PCI_DEVICE_ID_INTEL_LIGHT_RIDGE &&
+	    sw->config.device_id != PCI_DEVICE_ID_INTEL_EAGLE_RIDGE &&
 	    sw->config.device_id != PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C &&
 	    sw->config.device_id != PCI_DEVICE_ID_INTEL_PORT_RIDGE)
 		tb_sw_warn(sw, "unsupported switch device id %#x\n",
