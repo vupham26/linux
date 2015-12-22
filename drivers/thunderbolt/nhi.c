@@ -645,6 +645,12 @@ static struct pci_device_id nhi_ids[] = {
 	{
 		.class = PCI_CLASS_SYSTEM_OTHER << 8, .class_mask = ~0,
 		.vendor = PCI_VENDOR_ID_INTEL,
+		.device = PCI_DEVICE_ID_INTEL_EAGLE_RIDGE,
+		.subvendor = 0x2222, .subdevice = 0x1111,
+	},
+	{
+		.class = PCI_CLASS_SYSTEM_OTHER << 8, .class_mask = ~0,
+		.vendor = PCI_VENDOR_ID_INTEL,
 		.device = PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C,
 		.subvendor = 0x2222, .subdevice = 0x1111,
 	},
