@@ -332,6 +332,9 @@ void tb_switch_free(struct tb_switch *sw)
 		pm_runtime_put(&sw->tb->nhi->pdev->dev);
 	}
 
+	kfree(sw->vendor_name);
+	kfree(sw->device_name);
+	kfree(sw->apple_serial);
 	kfree(sw->ports);
 	kfree(sw->drom);
 	kfree(sw);
@@ -412,6 +415,12 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 	if (tb_drom_read(sw))
 		tb_sw_warn(sw, "tb_eeprom_read_rom failed, continuing\n");
 	tb_sw_info(sw, "uid: %#llx\n", sw->uid);
+	if (sw->vendor_name)
+		tb_sw_info(sw, "Vendor: %s\n", sw->vendor_name);
+	if (sw->device_name)
+		tb_sw_info(sw, "Device: %s\n", sw->device_name);
+	if (sw->apple_serial)
+		tb_sw_info(sw, "Apple Serial Number: %s\n", sw->apple_serial);
 
 	for (i = 0; i <= sw->config.max_port_number; i++) {
 		if (sw->ports[i].disabled) {
