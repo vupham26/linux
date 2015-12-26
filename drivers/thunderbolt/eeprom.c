@@ -5,6 +5,7 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/ctype.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 #include "tb.h"
@@ -292,6 +293,40 @@ int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid)
 	return 0;
 }
 
+/**
+ * tb_drom_parse_entry_generic - parse generic drom entry
+ *
+ * Do not trust the text string to be null terminated in drom.
+ * Replace nonprintable characters with blanks.
+ */
+static int tb_drom_parse_entry_generic(struct tb_switch *sw,
+				       struct tb_drom_entry_header *header)
+{
+	char *sanitized_text, *text = (char *)header + sizeof(*header);
+	size_t text_len = header->len - sizeof(*header) + 1;
+	int i;
+
+	sanitized_text = kmalloc(text_len, GFP_KERNEL);
+	if (!sanitized_text)
+		return -ENOMEM;
+
+	for (i = 0; i < text_len - 1; i++)
+		sanitized_text[i] = (isascii(text[i]) && isprint(text[i])) ?
+				    text[i] : ' ';
+	sanitized_text[text_len - 1] = '\0';
+
+	switch (header->index) {
+	case 0x01:	sw->vendor_name  = sanitized_text; return 0;
+	case 0x02:	sw->device_name  = sanitized_text; return 0;
+	case 0x30:	sw->apple_serial = sanitized_text; return 0;
+	}
+
+	tb_sw_info(sw, "unknown generic entry %#x: %s\n", header->index,
+		   sanitized_text);
+	kfree(sanitized_text);
+	return 0;
+}
+
 static int tb_drom_parse_entry_port(struct tb_switch *sw,
 				    struct tb_drom_entry_header *header)
 {
@@ -347,6 +382,7 @@ static int tb_drom_parse_entries(struct tb_switch *sw)
 
 		switch (entry->type) {
 		case TB_DROM_ENTRY_GENERIC:
+			res = tb_drom_parse_entry_generic(sw, entry);
 			break;
 		case TB_DROM_ENTRY_PORT:
 			res = tb_drom_parse_entry_port(sw, entry);

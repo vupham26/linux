@@ -23,6 +23,9 @@ struct tb_switch {
 	int cap_plug_events; /* offset, zero if not found */
 	bool is_unplugged; /* unplugged, will go away */
 	u8 *drom;
+	char *vendor_name;
+	char *device_name;
+	char *apple_serial;
 };
 
 /**
