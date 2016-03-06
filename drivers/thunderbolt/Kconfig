@@ -1,6 +1,6 @@
 menuconfig THUNDERBOLT
 	tristate "Thunderbolt support for Apple devices"
-	depends on PCI
+	depends on PCI && ACPI
 	select CRC32
 	help
 	  Cactus Ridge Thunderbolt Controller driver

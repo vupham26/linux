@@ -7,6 +7,7 @@
 #ifndef DSL3510_H_
 #define DSL3510_H_
 
+#include <linux/acpi.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
@@ -25,6 +26,8 @@ struct tb_nhi {
 	struct tb_ring **rx_rings;
 	struct work_struct interrupt_work;
 	u32 hop_count; /* Number of rings (end point hops) supported by NHI. */
+	unsigned long long wake_gpe; /* Hotplug interrupt during powerdown. */
+	acpi_handle set_power; /* Method to power controller up/down. */
 };
 
 /**

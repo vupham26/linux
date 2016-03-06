@@ -25,6 +25,7 @@
 #include <linux/sched.h>
 #include <linux/ktime.h>
 #include <linux/mm.h>
+#include <linux/pm_domain.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -3255,6 +3256,40 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_INTEL,
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_INTEL,
 			       PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE,
 			       quirk_apple_wait_for_thunderbolt);
+
+static int bridge_prepare(struct device *dev)
+{
+	return 1; /* stay asleep if already runtime suspended */
+}
+
+static void quirk_apple_thunderbolt_runpm(struct pci_dev *dev)
+{
+	struct dev_pm_domain *bridge_pm_domain;
+
+	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
+		return;
+	if ((dev->class >> 8) != PCI_CLASS_BRIDGE_PCI)
+		return;
+	if (dev->dev.pm_domain)
+		return;
+
+	bridge_pm_domain = kzalloc(sizeof(*bridge_pm_domain), GFP_KERNEL);
+	if (!bridge_pm_domain) {
+		dev_err(&dev->dev, "cannot allocate pm_domain\n");
+		return;
+	}
+
+	bridge_pm_domain->ops	       = *pci_bus_type.pm;
+	bridge_pm_domain->ops.prepare  = bridge_prepare;
+	bridge_pm_domain->ops.complete = NULL;
+	dev_pm_domain_set(&dev->dev, bridge_pm_domain);
+}
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_INTEL,
+			 PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C,
+			 quirk_apple_thunderbolt_runpm);
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_INTEL,
+			 PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE,
+			 quirk_apple_thunderbolt_runpm);
 #endif
 
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,

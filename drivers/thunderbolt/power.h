@@ -11,4 +11,7 @@
 
 extern const struct dev_pm_ops nhi_pm_ops;
 
+void nhi_runtime_pm_fini(struct tb_nhi *nhi);
+void nhi_runtime_pm_init(struct tb_nhi *nhi);
+
 #endif
