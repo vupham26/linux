@@ -26,6 +26,7 @@ struct tb_switch {
 	char *vendor_name;
 	char *device_name;
 	char *apple_serial;
+	char *controller_name;
 };
 
 /**
