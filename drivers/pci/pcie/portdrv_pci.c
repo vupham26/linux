@@ -104,6 +104,18 @@ static int generic_iter(struct device *dev, void *data)
  * The return value is 0 if all port services' callbacks returned 0, otherwise
  * it is the return value of the last callback executed.
  */
+static int pcie_port_prepare(struct device *dev)
+{
+	size_t o = offsetof(struct pcie_port_service_driver, prepare);
+	return device_for_each_child(dev, &o, generic_iter);
+}
+
+static void pcie_port_complete(struct device *dev)
+{
+	size_t o = offsetof(struct pcie_port_service_driver, complete);
+	device_for_each_child(dev, &o, generic_iter);
+}
+
 static int pcie_port_suspend(struct device *dev)
 {
 	size_t o = offsetof(struct pcie_port_service_driver, suspend);
@@ -118,6 +130,7 @@ static int pcie_port_resume(struct device *dev)
 
 static int pcie_port_resume_noirq(struct device *dev)
 {
+	size_t o = offsetof(struct pcie_port_service_driver, resume_noirq);
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	/*
@@ -127,17 +140,24 @@ static int pcie_port_resume_noirq(struct device *dev)
 	 */
 	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT)
 		pcie_clear_root_pme_status(pdev);
-	return 0;
+
+	return device_for_each_child(dev, &o, generic_iter);
 }
 
 static int pcie_port_runtime_suspend(struct device *dev)
 {
-	return to_pci_dev(dev)->bridge_d3 ? 0 : -EBUSY;
+	size_t o = offsetof(struct pcie_port_service_driver, runtime_suspend);
+
+	if (!to_pci_dev(dev)->bridge_d3)
+		return -EBUSY;
+
+	return device_for_each_child(dev, &o, generic_iter);
 }
 
 static int pcie_port_runtime_resume(struct device *dev)
 {
-	return 0;
+	size_t o = offsetof(struct pcie_port_service_driver, runtime_resume);
+	return device_for_each_child(dev, &o, generic_iter);
 }
 
 static int pcie_port_runtime_idle(struct device *dev)
@@ -151,6 +171,8 @@ static int pcie_port_runtime_idle(struct device *dev)
 }
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
+	.prepare	= pcie_port_prepare,
+	.complete	= pcie_port_complete,
 	.suspend	= pcie_port_suspend,
 	.resume		= pcie_port_resume,
 	.freeze		= pcie_port_suspend,
@@ -158,6 +180,7 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.poweroff	= pcie_port_suspend,
 	.restore	= pcie_port_resume,
 	.resume_noirq	= pcie_port_resume_noirq,
+	.restore_noirq	= pcie_port_resume_noirq,
 	.runtime_suspend = pcie_port_runtime_suspend,
 	.runtime_resume	= pcie_port_runtime_resume,
 	.runtime_idle	= pcie_port_runtime_idle,
