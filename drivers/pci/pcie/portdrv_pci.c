@@ -79,6 +79,43 @@ static int pcie_portdrv_restore_config(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PM
+typedef int (*pcie_pm_callback_t)(struct pcie_device *);
+
+static int generic_iter(struct device *dev, void *data)
+{
+	struct pcie_port_service_driver *service_driver;
+	size_t offset = *(size_t *)data;
+	pcie_pm_callback_t cb;
+
+	if ((dev->bus == &pcie_port_bus_type) && dev->driver) {
+		service_driver = to_service_driver(dev->driver);
+		cb = *(pcie_pm_callback_t *)((void *)service_driver + offset);
+		if (cb)
+			return cb(to_pcie_device(dev));
+	}
+	return 0;
+}
+
+/*
+ * The PM callbacks iterate over the port services allocated for the PCIe port
+ * and call down to each of them. Execution is aborted as soon as one of them
+ * returns a non-zero value.
+ *
+ * The return value is 0 if all port services' callbacks returned 0, otherwise
+ * it is the return value of the last callback executed.
+ */
+static int pcie_port_suspend(struct device *dev)
+{
+	size_t o = offsetof(struct pcie_port_service_driver, suspend);
+	return device_for_each_child(dev, &o, generic_iter);
+}
+
+static int pcie_port_resume(struct device *dev)
+{
+	size_t o = offsetof(struct pcie_port_service_driver, resume);
+	return device_for_each_child(dev, &o, generic_iter);
+}
+
 static int pcie_port_resume_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -114,12 +151,12 @@ static int pcie_port_runtime_idle(struct device *dev)
 }
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
-	.suspend	= pcie_port_device_suspend,
-	.resume		= pcie_port_device_resume,
-	.freeze		= pcie_port_device_suspend,
-	.thaw		= pcie_port_device_resume,
-	.poweroff	= pcie_port_device_suspend,
-	.restore	= pcie_port_device_resume,
+	.suspend	= pcie_port_suspend,
+	.resume		= pcie_port_resume,
+	.freeze		= pcie_port_suspend,
+	.thaw		= pcie_port_resume,
+	.poweroff	= pcie_port_suspend,
+	.restore	= pcie_port_resume,
 	.resume_noirq	= pcie_port_resume_noirq,
 	.runtime_suspend = pcie_port_runtime_suspend,
 	.runtime_resume	= pcie_port_runtime_resume,
