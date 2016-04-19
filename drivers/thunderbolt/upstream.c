@@ -93,10 +93,35 @@
 
 struct tb_upstream {
 	struct pci_dev *nhi;
+	struct pci_dev *dsb0;
 	unsigned long long wake_gpe; /* hotplug interrupt during powerdown */
 	acpi_handle set_power; /* method to power controller up/down */
 	acpi_handle get_power; /* method to query power state */
 };
+
+int nhi_resume_noirq(struct device *dev);
+
+static int upstream_resume_noirq(struct pcie_device *dev)
+{
+	struct tb_upstream *upstream = get_service_data(dev);
+
+	if (!upstream->nhi->dev.driver)
+		return 0;
+
+	/*
+	 * During suspend the thunderbolt controller is reset and all pci
+	 * tunnels are lost. The NHI driver needs to reestablish all tunnels
+	 * before the downstream bridges resume. There is no parent child
+	 * relationship between the NHI and the tunneled bridges, but there is
+	 * between them and the upstream bridge. Hence the NHI needs to be
+	 * resumed by us rather than the PM core.
+	 */
+	pci_set_power_state(upstream->dsb0, PCI_D0);
+	pci_restore_state(upstream->dsb0);
+	pci_set_power_state(upstream->nhi, PCI_D0);
+	pci_restore_state(upstream->nhi);
+	return nhi_resume_noirq(&upstream->nhi->dev);
+}
 
 static int upstream_prepare(struct pcie_device *dev)
 {
@@ -257,7 +282,6 @@ static int upstream_probe(struct pcie_device *dev)
 {
 	struct tb_upstream *upstream;
 	struct acpi_handle *nhi_handle;
-	struct pci_dev *dsb0;
 
 	/* host controllers only */
 	if (!dev->port->bus->self ||
@@ -269,13 +293,10 @@ static int upstream_probe(struct pcie_device *dev)
 		return -ENOMEM;
 
 	/* find Downstream Bridge 0 and NHI */
-	dsb0 = pci_get_slot(dev->port->subordinate, 0);
-	if (!dsb0 || !dsb0->subordinate) {
-		pci_dev_put(dsb0);
-		return -ENODEV;
-	}
-	upstream->nhi = pci_get_slot(dsb0->subordinate, 0);
-	pci_dev_put(dsb0);
+	upstream->dsb0 = pci_get_slot(dev->port->subordinate, 0);
+	if (!upstream->dsb0 || !upstream->dsb0->subordinate)
+		goto err;
+	upstream->nhi = pci_get_slot(upstream->dsb0->subordinate, 0);
 	if (!upstream->nhi || !pci_match_id(nhi_ids, upstream->nhi))
 		goto err;
 	nhi_handle = ACPI_HANDLE(&upstream->nhi->dev);
@@ -317,6 +338,7 @@ static int upstream_probe(struct pcie_device *dev)
 
 err:
 	pci_dev_put(upstream->nhi);
+	pci_dev_put(upstream->dsb0);
 	return -ENODEV;
 }
 
@@ -329,6 +351,7 @@ static void upstream_remove(struct pcie_device *dev)
 		dev_err(&dev->device, "cannot remove GPE handler\n");
 
 	pci_dev_put(upstream->nhi);
+	pci_dev_put(upstream->dsb0);
 	set_service_data(dev, NULL);
 }
 
@@ -342,4 +365,5 @@ struct pcie_port_service_driver upstream_driver = {
 	.complete		= upstream_complete,
 	.runtime_suspend	= upstream_runtime_suspend,
 	.runtime_resume		= upstream_runtime_resume,
+	.resume_noirq		= upstream_resume_noirq,
 };

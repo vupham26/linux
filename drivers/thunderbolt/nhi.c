@@ -503,7 +503,7 @@ static int nhi_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int nhi_resume_noirq(struct device *dev)
+int nhi_resume_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
@@ -627,18 +627,18 @@ static void nhi_remove(struct pci_dev *pdev)
 }
 
 /*
- * The tunneled pci bridges are siblings of us. Use resume_noirq to reenable
- * the tunnels asap. A corresponding pci quirk blocks the downstream bridges
- * resume_noirq until we are done.
+ * .resume_noirq and .restore_noirq are not listed here because they're not
+ * called from the PM core, but from the upstream bridge driver. This ensures
+ * that the NHI can reestablish the pci tunnels before the downstream bridges
+ * and the devices attached to them resume. (The NHI is not a parent of the
+ * downstream bridges, but the upstream bridge is.)
  */
 static const struct dev_pm_ops nhi_pm_ops = {
 	.suspend_noirq = nhi_suspend_noirq,
-	.resume_noirq = nhi_resume_noirq,
 	.freeze_noirq = nhi_suspend_noirq, /*
 					    * we just disable hotplug, the
 					    * pci-tunnels stay alive.
 					    */
-	.restore_noirq = nhi_resume_noirq,
 	.runtime_suspend = nhi_suspend_noirq,
 	.runtime_resume = nhi_resume_noirq,
 };
