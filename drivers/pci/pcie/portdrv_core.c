@@ -310,6 +310,8 @@ static int get_port_device_capability(struct pci_dev *dev)
 	}
 	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_DPC))
 		services |= PCIE_PORT_SERVICE_DPC;
+	if (dev->is_thunderbolt)
+		services |= PCIE_PORT_SERVICE_TBT;
 
 	return services;
 }
