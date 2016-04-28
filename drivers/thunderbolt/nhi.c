@@ -606,6 +606,12 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	pci_set_drvdata(pdev, tb);
 
+	pm_runtime_allow(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 10000);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
+
 	return 0;
 }
 
@@ -613,6 +619,9 @@ static void nhi_remove(struct pci_dev *pdev)
 {
 	struct tb *tb = pci_get_drvdata(pdev);
 	struct tb_nhi *nhi = tb->nhi;
+
+	pm_runtime_get(&pdev->dev);
+	pm_runtime_forbid(&pdev->dev);
 	thunderbolt_shutdown_and_free(tb);
 	nhi_shutdown(nhi);
 }
@@ -630,6 +639,8 @@ static const struct dev_pm_ops nhi_pm_ops = {
 					    * pci-tunnels stay alive.
 					    */
 	.restore_noirq = nhi_resume_noirq,
+	.runtime_suspend = nhi_suspend_noirq,
+	.runtime_resume = nhi_resume_noirq,
 };
 
 struct pci_device_id nhi_ids[] = {
