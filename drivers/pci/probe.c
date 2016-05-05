@@ -1078,6 +1078,20 @@ void set_pcie_hotplug_bridge(struct pci_dev *pdev)
 		pdev->is_hotplug_bridge = 1;
 }
 
+static void parse_pcie_vendor_specific_caps(struct pci_dev *dev)
+{
+	int vsec = 0;
+	u32 header;
+
+	while ((vsec = pci_find_next_ext_capability(dev, vsec,
+						    PCI_EXT_CAP_ID_VNDR))) {
+		pci_read_config_dword(dev, vsec + PCI_VNDR_HEADER, &header);
+		if (dev->vendor == PCI_VENDOR_ID_INTEL &&
+		    PCI_VNDR_HEADER_ID(header) == PCI_VSEC_ID_INTEL_TBT)
+			dev->is_thunderbolt = 1;
+	}
+}
+
 /**
  * pci_ext_cfg_is_aliased - is ext config space just an alias of std config?
  * @dev: PCI device
@@ -1229,6 +1243,9 @@ int pci_setup_device(struct pci_dev *dev)
 
 	/* need to have dev->class ready */
 	dev->cfg_size = pci_cfg_space_size(dev);
+
+	/* need to have dev->cfg_size ready */
+	parse_pcie_vendor_specific_caps(dev);
 
 	/* "Unknown power state" */
 	dev->current_state = PCI_UNKNOWN;
