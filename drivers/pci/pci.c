@@ -1943,6 +1943,8 @@ static pci_power_t pci_target_state(struct pci_dev *dev)
 			      && !(dev->pme_support & (1 << target_state)))
 				target_state--;
 		}
+	} else if (dev->current_state == PCI_D3cold) {
+		target_state = PCI_D3cold;
 	}
 
 	return target_state;
