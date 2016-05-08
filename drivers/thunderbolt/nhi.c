@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
+#include <linux/pcieport_if.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/dmi.h>
@@ -631,7 +632,7 @@ static const struct dev_pm_ops nhi_pm_ops = {
 	.restore_noirq = nhi_resume_noirq,
 };
 
-static struct pci_device_id nhi_ids[] = {
+struct pci_device_id nhi_ids[] = {
 	/*
 	 * We have to specify class, the TB bridges use the same device and
 	 * vendor (sub)id on gen 1 and gen 2 controllers.
@@ -668,16 +669,32 @@ static struct pci_driver nhi_driver = {
 	.driver.pm = &nhi_pm_ops,
 };
 
+extern struct pcie_port_service_driver upstream_driver;
+
 static int __init nhi_init(void)
 {
+	int res;
+
 	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
 		return -ENOSYS;
-	return pci_register_driver(&nhi_driver);
+
+	res = pcie_port_service_register(&upstream_driver);
+	if (res)
+		return res;
+
+	res = pci_register_driver(&nhi_driver);
+	if (res) {
+		pcie_port_service_unregister(&upstream_driver);
+		return res;
+	}
+
+	return 0;
 }
 
 static void __exit nhi_unload(void)
 {
 	pci_unregister_driver(&nhi_driver);
+	pcie_port_service_unregister(&upstream_driver);
 }
 
 module_init(nhi_init);

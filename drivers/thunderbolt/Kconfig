@@ -1,7 +1,9 @@
 menuconfig THUNDERBOLT
 	tristate "Thunderbolt support for Apple devices"
-	depends on PCI
+	depends on PCI && ACPI
+	select PCIEPORTBUS
 	select CRC32
+	select PM
 	help
 	  Cactus Ridge Thunderbolt Controller driver
 	  This driver is required if you want to hotplug Thunderbolt devices on
