@@ -612,6 +612,9 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (!dev->pm_cap)
 		return -EIO;
 
+	if (dev->current_state == PCI_D3cold)
+		return -EIO;
+
 	if (state < PCI_D0 || state > PCI_D3hot)
 		return -EINVAL;
 
@@ -728,8 +731,10 @@ void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
  */
 void pci_power_up(struct pci_dev *dev)
 {
-	if (platform_pci_power_manageable(dev))
+	if (platform_pci_power_manageable(dev)) {
 		platform_pci_set_power_state(dev, PCI_D0);
+		dev->current_state = PCI_UNKNOWN;
+	}
 
 	pci_raw_set_power_state(dev, PCI_D0);
 	pci_update_current_state(dev, PCI_D0);
@@ -746,8 +751,10 @@ static int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
 
 	if (platform_pci_power_manageable(dev)) {
 		error = platform_pci_set_power_state(dev, state);
-		if (!error)
+		if (!error) {
+			dev->current_state = PCI_UNKNOWN;
 			pci_update_current_state(dev, state);
+		}
 	} else
 		error = -ENODEV;
 
@@ -809,30 +816,6 @@ static void __pci_start_power_transition(struct pci_dev *dev, pci_power_t state)
 }
 
 /**
- * __pci_dev_set_current_state - Set current state of a PCI device
- * @dev: Device to handle
- * @data: pointer to state to be set
- */
-static int __pci_dev_set_current_state(struct pci_dev *dev, void *data)
-{
-	pci_power_t state = *(pci_power_t *)data;
-
-	dev->current_state = state;
-	return 0;
-}
-
-/**
- * __pci_bus_set_current_state - Walk given bus and set current state of devices
- * @bus: Top bus of the subtree to walk.
- * @state: state to be set
- */
-static void __pci_bus_set_current_state(struct pci_bus *bus, pci_power_t state)
-{
-	if (bus)
-		pci_walk_bus(bus, __pci_dev_set_current_state, &state);
-}
-
-/**
  * __pci_complete_power_transition - Complete power transition of a PCI device
  * @dev: PCI device to handle.
  * @state: State to put the device into.
@@ -841,15 +824,9 @@ static void __pci_bus_set_current_state(struct pci_bus *bus, pci_power_t state)
  */
 int __pci_complete_power_transition(struct pci_dev *dev, pci_power_t state)
 {
-	int ret;
-
 	if (state <= PCI_D0)
 		return -EINVAL;
-	ret = pci_platform_power_transition(dev, state);
-	/* Power off the bridge may power off the whole hierarchy */
-	if (!ret && state == PCI_D3cold)
-		__pci_bus_set_current_state(dev->subordinate, PCI_D3cold);
-	return ret;
+	return pci_platform_power_transition(dev, state);
 }
 EXPORT_SYMBOL_GPL(__pci_complete_power_transition);
 
