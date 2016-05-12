@@ -291,10 +291,11 @@ void pci_bus_add_device(struct pci_dev *dev)
 	pci_fixup_device(pci_fixup_final, dev);
 	pci_create_sysfs_dev_files(dev);
 	pci_proc_attach_device(dev);
+	pci_bridge_d3_device_changed(dev);
 
 	dev->match_driver = true;
 	retval = device_attach(&dev->dev);
-	if (retval < 0) {
+	if (retval < 0 && retval != -EPROBE_DEFER) {
 		dev_warn(&dev->dev, "device attach failed (%d)\n", retval);
 		pci_proc_detach_device(dev);
 		pci_remove_sysfs_dev_files(dev);
@@ -324,7 +325,9 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		BUG_ON(!dev->is_added);
+		/* Skip if device attach failed */
+		if (!dev->is_added)
+			continue;
 		child = dev->subordinate;
 		if (child)
 			pci_bus_add_devices(child);
