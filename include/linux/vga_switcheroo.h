@@ -127,20 +127,20 @@ struct vga_switcheroo_handler {
  * @set_gpu_state: do the equivalent of suspend/resume for the card.
  * 	Mandatory. This should not cut power to the discrete GPU,
  * 	which is the job of the handler
- * @reprobe: poll outputs.
- * 	Optional. This gets called after waking the GPU and switching
- * 	the outputs to it
+ * @post_switch: do housekeeping after the mux was switched.
+ *	Optional. This gets called for both, the active and the inactive GPU.
+ *	Typical tasks are output polling or updating the runtime pm refcount.
  * @can_switch: check if the device is in a position to switch now.
  * 	Mandatory. The client should return false if a user space process
  * 	has one of its device files open
  *
  * Client callbacks. A client can be either a GPU or an audio device on a GPU.
- * The @set_gpu_state and @can_switch methods are mandatory, @reprobe may be
- * set to NULL. For audio clients, the @reprobe member is bogus.
+ * The @set_gpu_state and @can_switch methods are mandatory, @post_switch may
+ * be set to NULL. For audio clients, the @post_switch member is bogus.
  */
 struct vga_switcheroo_client_ops {
 	void (*set_gpu_state)(struct pci_dev *dev, enum vga_switcheroo_state);
-	void (*reprobe)(struct pci_dev *dev);
+	void (*post_switch)(struct pci_dev *dev);
 	bool (*can_switch)(struct pci_dev *dev);
 };
 

@@ -57,10 +57,11 @@ nouveau_switcheroo_set_state(struct pci_dev *pdev,
 }
 
 static void
-nouveau_switcheroo_reprobe(struct pci_dev *pdev)
+nouveau_switcheroo_post_switch(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	nouveau_fbcon_output_poll_changed(dev);
+	if (pdev == vga_default_device())
+		nouveau_fbcon_output_poll_changed(dev);
 }
 
 static bool
@@ -79,7 +80,7 @@ nouveau_switcheroo_can_switch(struct pci_dev *pdev)
 static const struct vga_switcheroo_client_ops
 nouveau_switcheroo_ops = {
 	.set_gpu_state = nouveau_switcheroo_set_state,
-	.reprobe = nouveau_switcheroo_reprobe,
+	.post_switch = nouveau_switcheroo_post_switch,
 	.can_switch = nouveau_switcheroo_can_switch,
 };
 
