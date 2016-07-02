@@ -60,8 +60,18 @@ static void
 nouveau_switcheroo_post_switch(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_connector *conn;
+
 	if (pdev == vga_default_device())
 		nouveau_fbcon_output_poll_changed(dev);
+	else {
+		drm_modeset_lock_all(dev);
+		drm_for_each_connector(conn, dev)
+			if (conn->connector_type == DRM_MODE_CONNECTOR_LVDS ||
+			    conn->connector_type == DRM_MODE_CONNECTOR_eDP)
+				drm_crtc_force_disable(conn->encoder->crtc);
+		drm_modeset_unlock_all(dev);
+	}
 }
 
 static bool
