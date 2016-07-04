@@ -682,6 +682,9 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 
 	set_audio_state(active->id, VGA_SWITCHEROO_OFF);
 
+	if (new_client->driver_power_control)
+		pm_runtime_get_sync(&new_client->pdev->dev);
+
 	if (new_client->fb_info) {
 		struct fb_event event;
 
@@ -695,7 +698,7 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 	ret = vgasr_priv.handler->switchto(new_client->id);
 	mutex_unlock(&vgasr_priv.mux_hw_lock);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (new_client->ops->post_switch)
 		new_client->ops->post_switch(new_client->pdev);
@@ -708,7 +711,12 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 	set_audio_state(new_client->id, VGA_SWITCHEROO_ON);
 
 	new_client->active = true;
-	return 0;
+
+out:
+	if (new_client->driver_power_control)
+		pm_runtime_put_autosuspend(&new_client->pdev->dev);
+
+	return ret;
 }
 
 static bool check_can_switch(void)
