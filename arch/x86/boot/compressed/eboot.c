@@ -571,6 +571,55 @@ free_handle:
 	efi_call_early(free_pool, pci_handle);
 }
 
+static void retrieve_apple_device_properties(struct boot_params *params)
+{
+	efi_guid_t guid = APPLE_PROPERTIES_PROTOCOL_GUID;
+	struct setup_data *data, *new;
+	efi_status_t status;
+	void *properties;
+	u32 size = 0;
+
+	status = efi_early->call(
+			(unsigned long)sys_table->boottime->locate_protocol,
+			&guid, NULL, &properties);
+	if (status != EFI_SUCCESS)
+		return;
+
+	do {
+		status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
+			size + sizeof(struct setup_data), &new);
+		if (status != EFI_SUCCESS) {
+			efi_printk(sys_table,
+				   "Failed to alloc mem for properties\n");
+			return;
+		}
+		status = efi_early->call(efi_early->is64 ?
+			((apple_properties_protocol_64 *)properties)->get_all :
+			((apple_properties_protocol_32 *)properties)->get_all,
+			properties, new->data, &size);
+		if (status == EFI_BUFFER_TOO_SMALL)
+			efi_call_early(free_pool, new);
+	} while (status == EFI_BUFFER_TOO_SMALL);
+
+	if (!size) {
+		efi_call_early(free_pool, new);
+		return;
+	}
+
+	new->type = SETUP_APPLE_PROPERTIES;
+	new->len  = size;
+	new->next = 0;
+
+	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
+	if (!data)
+		params->hdr.setup_data = (unsigned long)new;
+	else {
+		while (data->next)
+			data = (struct setup_data *)(unsigned long)data->next;
+		data->next = (unsigned long)new;
+	}
+}
+
 static efi_status_t
 setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 {
@@ -1098,6 +1147,7 @@ free_mem_map:
 struct boot_params *efi_main(struct efi_config *c,
 			     struct boot_params *boot_params)
 {
+	efi_char16_t const apple[] = { 'A', 'p', 'p', 'l', 'e', 0 };
 	struct desc_ptr *gdt = NULL;
 	efi_loaded_image_t *image;
 	struct setup_header *hdr = &boot_params->hdr;
@@ -1127,6 +1177,11 @@ struct boot_params *efi_main(struct efi_config *c,
 	setup_graphics(boot_params);
 
 	setup_efi_pci(boot_params);
+
+	if (!memcmp((void *)sys_table->fw_vendor, apple, sizeof(apple))) {
+		if (IS_ENABLED(CONFIG_APPLE_PROPERTIES))
+			retrieve_apple_device_properties(boot_params);
+	}
 
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
 				sizeof(*gdt), (void **)&gdt);
