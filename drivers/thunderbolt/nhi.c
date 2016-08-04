@@ -605,6 +605,8 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	pci_set_drvdata(pdev, tb);
 
+	thunderbolt_power_init(tb);
+
 	return 0;
 }
 
@@ -612,6 +614,7 @@ static void nhi_remove(struct pci_dev *pdev)
 {
 	struct tb *tb = pci_get_drvdata(pdev);
 	struct tb_nhi *nhi = tb->nhi;
+	thunderbolt_power_fini(tb);
 	thunderbolt_shutdown_and_free(tb);
 	nhi_shutdown(nhi);
 }

@@ -11,6 +11,7 @@
 
 #include "tb_regs.h"
 #include "ctl.h"
+#include "power.h"
 
 /**
  * struct tb_switch - a thunderbolt switch
@@ -103,6 +104,7 @@ struct tb {
 				 */
 	struct tb_nhi *nhi;
 	struct tb_ctl *ctl;
+	struct tb_power *power;
 	struct workqueue_struct *wq; /* ordered workqueue for plug events */
 	struct tb_switch *root_switch;
 	struct list_head tunnel_list; /* list of active PCIe tunnels */
