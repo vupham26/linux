@@ -5,6 +5,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 #include "tb.h"
@@ -326,6 +327,11 @@ void tb_switch_free(struct tb_switch *sw)
 	if (!sw->is_unplugged)
 		tb_plug_events_active(sw, false);
 
+	if (sw != sw->tb->root_switch) {
+		pm_runtime_mark_last_busy(&sw->tb->nhi->pdev->dev);
+		pm_runtime_put_autosuspend(&sw->tb->nhi->pdev->dev);
+	}
+
 	kfree(sw->ports);
 	kfree(sw->drom);
 	kfree(sw);
@@ -419,6 +425,9 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 
 	if (tb_plug_events_active(sw, true))
 		goto err;
+
+	if (tb->root_switch)
+		pm_runtime_get(&tb->nhi->pdev->dev);
 
 	return sw;
 err:
