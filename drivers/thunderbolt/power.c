@@ -319,6 +319,12 @@ void thunderbolt_power_init(struct tb *tb)
 
 	tb->power = power;
 
+	pm_runtime_allow(nhi_dev);
+	pm_runtime_set_autosuspend_delay(nhi_dev, 10000);
+	pm_runtime_use_autosuspend(nhi_dev);
+	pm_runtime_mark_last_busy(nhi_dev);
+	pm_runtime_put_autosuspend(nhi_dev);
+
 	return;
 
 err_free:
@@ -334,6 +340,9 @@ void thunderbolt_power_fini(struct tb *tb)
 
 	if (!power)
 		return; /* thunderbolt_power_init() failed */
+
+	pm_runtime_get(nhi_dev);
+	pm_runtime_forbid(nhi_dev);
 
 	tb->power = NULL;
 	dev_pm_domain_set(upstream_dev, NULL);
