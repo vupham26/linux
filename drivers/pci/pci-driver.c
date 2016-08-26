@@ -459,6 +459,15 @@ static void pci_device_shutdown(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct pci_driver *drv = pci_dev->driver;
 
+	/* Fast path for suspended devices */
+	if (pm_runtime_status_suspended(dev) && (!drv || !drv->shutdown) &&
+	    !kexec_in_progress) {
+		pm_runtime_disable(dev);
+		if (pm_runtime_status_suspended(dev))
+			return;
+		pm_runtime_enable(dev);
+	}
+
 	pm_runtime_resume(dev);
 
 	if (drv && drv->shutdown)
