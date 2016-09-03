@@ -2292,7 +2292,6 @@ static void pci_bridge_d3_update(struct pci_dev *dev, bool remove)
 	if (!bridge || !pci_bridge_d3_possible(bridge))
 		return;
 
-	pci_dev_get(bridge);
 	/*
 	 * If the device is removed we do not care about its D3cold
 	 * capabilities.
@@ -2314,8 +2313,6 @@ static void pci_bridge_d3_update(struct pci_dev *dev, bool remove)
 		/* Propagate change to upstream bridges */
 		pci_bridge_d3_update(bridge, false);
 	}
-
-	pci_dev_put(bridge);
 }
 
 /**
