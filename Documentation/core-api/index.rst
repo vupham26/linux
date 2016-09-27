@@ -16,6 +16,14 @@ Core utilities
    local_ops
    workqueue
 
+Devices
+=======
+
+.. toctree::
+   :maxdepth: 1
+
+   device_link
+
 Interfaces for kernel debugging
 ===============================
 
