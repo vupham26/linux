@@ -2269,6 +2269,24 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 	return false;
 }
 
+static bool pci_hotplug_bridge_may_wakeup(struct pci_dev *dev)
+{
+	struct pci_dev *parent, *grandparent;
+
+	/*
+	 * Thunderbolt host controllers have a pin to side-band signal
+	 * plug events.  Their hotplug ports are recognizable by having
+	 * a non-Thunderbolt device as grandparent.
+	 */
+	if (dev->is_thunderbolt &&
+	    (parent = pci_upstream_bridge(dev)) &&
+	    (grandparent = pci_upstream_bridge(parent)) &&
+	    !grandparent->is_thunderbolt)
+		return true;
+
+	return false;
+}
+
 static int pci_dev_check_d3cold(struct pci_dev *dev, void *data)
 {
 	bool *d3cold_ok = data;
@@ -2284,7 +2302,7 @@ static int pci_dev_check_d3cold(struct pci_dev *dev, void *data)
 	    !pci_power_manageable(dev) ||
 
 	    /* Hotplug interrupts cannot be delivered if the link is down. */
-	    dev->is_hotplug_bridge)
+	    (dev->is_hotplug_bridge && !pci_hotplug_bridge_may_wakeup(dev)))
 
 		*d3cold_ok = false;
 
