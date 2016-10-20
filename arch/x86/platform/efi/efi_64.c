@@ -211,6 +211,17 @@ void efi_sync_low_kernel_mappings(void)
 	memcpy(pud_efi, pud_k, sizeof(pud_t) * num_entries);
 }
 
+/*
+ * Wrapper for slow_virt_to_phys() that handles NULL addresses.
+ */
+static inline phys_addr_t virt_to_phys_or_null(void *va)
+{
+	if (!va)
+		return 0;
+
+	return slow_virt_to_phys(va);
+}
+
 int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 {
 	unsigned long pfn, text;
@@ -251,7 +262,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	if (!page)
 		panic("Unable to allocate EFI runtime stack < 4GB\n");
 
-	efi_scratch.phys_stack = virt_to_phys(page_address(page));
+	efi_scratch.phys_stack = virt_to_phys_or_null(page_address(page));
 	efi_scratch.phys_stack += PAGE_SIZE; /* stack grows down */
 
 	npages = (_etext - _text) >> PAGE_SHIFT;
@@ -494,8 +505,8 @@ static efi_status_t efi_thunk_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 
 	spin_lock(&rtc_lock);
 
-	phys_tm = virt_to_phys(tm);
-	phys_tc = virt_to_phys(tc);
+	phys_tm = virt_to_phys_or_null(tm);
+	phys_tc = virt_to_phys_or_null(tc);
 
 	status = efi_thunk(get_time, phys_tm, phys_tc);
 
@@ -511,7 +522,7 @@ static efi_status_t efi_thunk_set_time(efi_time_t *tm)
 
 	spin_lock(&rtc_lock);
 
-	phys_tm = virt_to_phys(tm);
+	phys_tm = virt_to_phys_or_null(tm);
 
 	status = efi_thunk(set_time, phys_tm);
 
@@ -529,9 +540,9 @@ efi_thunk_get_wakeup_time(efi_bool_t *enabled, efi_bool_t *pending,
 
 	spin_lock(&rtc_lock);
 
-	phys_enabled = virt_to_phys(enabled);
-	phys_pending = virt_to_phys(pending);
-	phys_tm = virt_to_phys(tm);
+	phys_enabled = virt_to_phys_or_null(enabled);
+	phys_pending = virt_to_phys_or_null(pending);
+	phys_tm = virt_to_phys_or_null(tm);
 
 	status = efi_thunk(get_wakeup_time, phys_enabled,
 			     phys_pending, phys_tm);
@@ -549,7 +560,7 @@ efi_thunk_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
 
 	spin_lock(&rtc_lock);
 
-	phys_tm = virt_to_phys(tm);
+	phys_tm = virt_to_phys_or_null(tm);
 
 	status = efi_thunk(set_wakeup_time, enabled, phys_tm);
 
@@ -567,11 +578,11 @@ efi_thunk_get_variable(efi_char16_t *name, efi_guid_t *vendor,
 	u32 phys_name, phys_vendor, phys_attr;
 	u32 phys_data_size, phys_data;
 
-	phys_data_size = virt_to_phys(data_size);
-	phys_vendor = virt_to_phys(vendor);
-	phys_name = virt_to_phys(name);
-	phys_attr = virt_to_phys(attr);
-	phys_data = virt_to_phys(data);
+	phys_data_size = virt_to_phys_or_null(data_size);
+	phys_vendor = virt_to_phys_or_null(vendor);
+	phys_name = virt_to_phys_or_null(name);
+	phys_attr = virt_to_phys_or_null(attr);
+	phys_data = virt_to_phys_or_null(data);
 
 	status = efi_thunk(get_variable, phys_name, phys_vendor,
 			   phys_attr, phys_data_size, phys_data);
@@ -586,9 +597,9 @@ efi_thunk_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 	u32 phys_name, phys_vendor, phys_data;
 	efi_status_t status;
 
-	phys_name = virt_to_phys(name);
-	phys_vendor = virt_to_phys(vendor);
-	phys_data = virt_to_phys(data);
+	phys_name = virt_to_phys_or_null(name);
+	phys_vendor = virt_to_phys_or_null(vendor);
+	phys_data = virt_to_phys_or_null(data);
 
 	/* If data_size is > sizeof(u32) we've got problems */
 	status = efi_thunk(set_variable, phys_name, phys_vendor,
@@ -605,9 +616,9 @@ efi_thunk_get_next_variable(unsigned long *name_size,
 	efi_status_t status;
 	u32 phys_name_size, phys_name, phys_vendor;
 
-	phys_name_size = virt_to_phys(name_size);
-	phys_vendor = virt_to_phys(vendor);
-	phys_name = virt_to_phys(name);
+	phys_name_size = virt_to_phys_or_null(name_size);
+	phys_vendor = virt_to_phys_or_null(vendor);
+	phys_name = virt_to_phys_or_null(name);
 
 	status = efi_thunk(get_next_variable, phys_name_size,
 			   phys_name, phys_vendor);
@@ -621,7 +632,7 @@ efi_thunk_get_next_high_mono_count(u32 *count)
 	efi_status_t status;
 	u32 phys_count;
 
-	phys_count = virt_to_phys(count);
+	phys_count = virt_to_phys_or_null(count);
 	status = efi_thunk(get_next_high_mono_count, phys_count);
 
 	return status;
@@ -633,7 +644,7 @@ efi_thunk_reset_system(int reset_type, efi_status_t status,
 {
 	u32 phys_data;
 
-	phys_data = virt_to_phys(data);
+	phys_data = virt_to_phys_or_null(data);
 
 	efi_thunk(reset_system, reset_type, status, data_size, phys_data);
 }
@@ -661,9 +672,9 @@ efi_thunk_query_variable_info(u32 attr, u64 *storage_space,
 	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
 		return EFI_UNSUPPORTED;
 
-	phys_storage = virt_to_phys(storage_space);
-	phys_remaining = virt_to_phys(remaining_space);
-	phys_max = virt_to_phys(max_variable_size);
+	phys_storage = virt_to_phys_or_null(storage_space);
+	phys_remaining = virt_to_phys_or_null(remaining_space);
+	phys_max = virt_to_phys_or_null(max_variable_size);
 
 	status = efi_thunk(query_variable_info, attr, phys_storage,
 			   phys_remaining, phys_max);
