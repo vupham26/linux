@@ -2241,13 +2241,10 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 			return false;
 
 		/*
-		 * Hotplug interrupts cannot be delivered if the link is down,
-		 * so parents of a hotplug port must stay awake. In addition,
-		 * hotplug ports handled by firmware in System Management Mode
+		 * Hotplug ports handled by firmware in System Management Mode
 		 * may not be put into D3 by the OS (Thunderbolt on non-Macs).
-		 * For simplicity, disallow in general for now.
 		 */
-		if (bridge->is_hotplug_bridge)
+		if (bridge->is_hotplug_bridge && !pciehp_is_native(bridge))
 			return false;
 
 		if (pci_bridge_d3_force)
@@ -2256,6 +2253,13 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 		/* Even the oldest 2010 Thunderbolt controller supports D3. */
 		if (bridge->is_thunderbolt)
 			return true;
+
+		/*
+		 * Non-Thunderbolt hotplug ports need further testing before
+		 * enabling D3 on them.
+		 */
+		if (bridge->is_hotplug_bridge)
+			return false;
 
 		/*
 		 * It should be safe to put PCIe ports from 2015 or newer
