@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <linux/pci.h>
 #include "../pci.h"
 #include "pciehp.h"
@@ -390,6 +391,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 {
 	u8 getstatus = 0;
 	struct controller *ctrl = p_slot->ctrl;
+	int retval;
 
 	pciehp_get_adapter_status(p_slot, &getstatus);
 	if (!getstatus) {
@@ -414,7 +416,10 @@ int pciehp_enable_slot(struct slot *p_slot)
 		}
 	}
 
-	return board_added(p_slot);
+	pm_runtime_get_sync(&ctrl->pcie->port->dev);
+	retval = board_added(p_slot);
+	pm_runtime_put(&ctrl->pcie->port->dev);
+	return retval;
 }
 
 /*
@@ -424,6 +429,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 {
 	u8 getstatus = 0;
 	struct controller *ctrl = p_slot->ctrl;
+	int retval;
 
 	if (!p_slot->ctrl)
 		return 1;
@@ -437,7 +443,10 @@ int pciehp_disable_slot(struct slot *p_slot)
 		}
 	}
 
-	return remove_board(p_slot);
+	pm_runtime_get_sync(&ctrl->pcie->port->dev);
+	retval = remove_board(p_slot);
+	pm_runtime_put(&ctrl->pcie->port->dev);
+	return retval;
 }
 
 int pciehp_sysfs_enable_slot(struct slot *p_slot)
