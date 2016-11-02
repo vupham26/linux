@@ -264,6 +264,9 @@ void thunderbolt_power_init(struct tb *tb)
 	struct tb_power *power = NULL;
 	struct acpi_handle *nhi_handle;
 
+	if (tb->nhi->pdev->device == PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_NHI)
+		return;
+
 	power = kzalloc(sizeof(*power), GFP_KERNEL);
 	if (!power) {
 		dev_err(nhi_dev, "cannot allocate power data\n");
