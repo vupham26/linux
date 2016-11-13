@@ -632,13 +632,13 @@ efi_thunk_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
 	return status;
 }
 
-static unsigned long efi_name_size(efi_char16_t *name)
+static unsigned long efi_name_size(const efi_char16_t *name)
 {
 	return ucs2_strsize(name, EFI_VAR_NAME_LEN) + 1;
 }
 
 static efi_status_t
-efi_thunk_get_variable(efi_char16_t *name, efi_guid_t *vendor,
+efi_thunk_get_variable(const efi_char16_t *name, const efi_guid_t *vendor,
 		       u32 *attr, unsigned long *data_size, void *data)
 {
 	efi_status_t status;
@@ -646,8 +646,8 @@ efi_thunk_get_variable(efi_char16_t *name, efi_guid_t *vendor,
 	u32 phys_data_size, phys_data;
 
 	phys_data_size = virt_to_phys_or_null(data_size);
-	phys_vendor = virt_to_phys_or_null(vendor);
-	phys_name = virt_to_phys_or_null_size(name, efi_name_size(name));
+	phys_vendor = virt_to_phys_or_null((void *)vendor);
+	phys_name = virt_to_phys_or_null_size((void *)name, efi_name_size(name));
 	phys_attr = virt_to_phys_or_null(attr);
 	phys_data = virt_to_phys_or_null_size(data, *data_size);
 
@@ -658,15 +658,15 @@ efi_thunk_get_variable(efi_char16_t *name, efi_guid_t *vendor,
 }
 
 static efi_status_t
-efi_thunk_set_variable(efi_char16_t *name, efi_guid_t *vendor,
-		       u32 attr, unsigned long data_size, void *data)
+efi_thunk_set_variable(const efi_char16_t *name, const efi_guid_t *vendor,
+		       u32 attr, unsigned long data_size, const void *data)
 {
 	u32 phys_name, phys_vendor, phys_data;
 	efi_status_t status;
 
-	phys_name = virt_to_phys_or_null_size(name, efi_name_size(name));
-	phys_vendor = virt_to_phys_or_null(vendor);
-	phys_data = virt_to_phys_or_null_size(data, data_size);
+	phys_name = virt_to_phys_or_null_size((void *)name, efi_name_size(name));
+	phys_vendor = virt_to_phys_or_null((void *)vendor);
+	phys_data = virt_to_phys_or_null_size((void *)data, data_size);
 
 	/* If data_size is > sizeof(u32) we've got problems */
 	status = efi_thunk(set_variable, phys_name, phys_vendor,

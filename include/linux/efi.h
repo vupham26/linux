@@ -514,13 +514,15 @@ typedef efi_status_t efi_set_time_t (efi_time_t *tm);
 typedef efi_status_t efi_get_wakeup_time_t (efi_bool_t *enabled, efi_bool_t *pending,
 					    efi_time_t *tm);
 typedef efi_status_t efi_set_wakeup_time_t (efi_bool_t enabled, efi_time_t *tm);
-typedef efi_status_t efi_get_variable_t (efi_char16_t *name, efi_guid_t *vendor, u32 *attr,
+typedef efi_status_t efi_get_variable_t (const efi_char16_t *name,
+					 const efi_guid_t *vendor, u32 *attr,
 					 unsigned long *data_size, void *data);
 typedef efi_status_t efi_get_next_variable_t (unsigned long *name_size, efi_char16_t *name,
 					      efi_guid_t *vendor);
-typedef efi_status_t efi_set_variable_t (efi_char16_t *name, efi_guid_t *vendor, 
-					 u32 attr, unsigned long data_size,
-					 void *data);
+typedef efi_status_t efi_set_variable_t (const efi_char16_t *name,
+					 const efi_guid_t *vendor, u32 attr,
+					 unsigned long data_size,
+					 const void *data);
 typedef efi_status_t efi_get_next_high_mono_count_t (u32 *count);
 typedef void efi_reset_system_t (int reset_type, efi_status_t status,
 				 unsigned long data_size, efi_char16_t *data);

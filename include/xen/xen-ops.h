@@ -103,14 +103,14 @@ efi_status_t xen_efi_set_time(efi_time_t *tm);
 efi_status_t xen_efi_get_wakeup_time(efi_bool_t *enabled, efi_bool_t *pending,
 				     efi_time_t *tm);
 efi_status_t xen_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm);
-efi_status_t xen_efi_get_variable(efi_char16_t *name, efi_guid_t *vendor,
-				  u32 *attr, unsigned long *data_size,
-				  void *data);
+efi_status_t xen_efi_get_variable(const efi_char16_t *name,
+				  const efi_guid_t *vendor, u32 *attr,
+				  unsigned long *data_size, void *data);
 efi_status_t xen_efi_get_next_variable(unsigned long *name_size,
 				       efi_char16_t *name, efi_guid_t *vendor);
-efi_status_t xen_efi_set_variable(efi_char16_t *name, efi_guid_t *vendor,
-				  u32 attr, unsigned long data_size,
-				  void *data);
+efi_status_t xen_efi_set_variable(const efi_char16_t *name,
+				  const efi_guid_t *vendor, u32 attr,
+				  unsigned long data_size, const void *data);
 efi_status_t xen_efi_query_variable_info(u32 attr, u64 *storage_space,
 					 u64 *remaining_space,
 					 u64 *max_variable_size);

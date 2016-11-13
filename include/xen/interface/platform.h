@@ -171,7 +171,7 @@ struct xenpf_efi_runtime_call {
 #define XEN_EFI_VARIABLE_BOOTSERVICE_ACCESS 0x00000002
 #define XEN_EFI_VARIABLE_RUNTIME_ACCESS     0x00000004
 		struct {
-			GUEST_HANDLE(void) name;  /* UCS-2/UTF-16 string */
+			GUEST_HANDLE(cvoid) name;  /* UCS-2/UTF-16 string */
 			xen_ulong_t size;
 			GUEST_HANDLE(void) data;
 			struct xenpf_efi_guid {
@@ -180,7 +180,14 @@ struct xenpf_efi_runtime_call {
 				uint16_t data3;
 				uint8_t data4[8];
 			} vendor_guid;
-		} get_variable, set_variable;
+		} get_variable;
+
+		struct {
+			GUEST_HANDLE(cvoid) name;  /* UCS-2/UTF-16 string */
+			xen_ulong_t size;
+			GUEST_HANDLE(cvoid) data;
+			struct xenpf_efi_guid vendor_guid;
+		} set_variable;
 
 		struct {
 			xen_ulong_t size;

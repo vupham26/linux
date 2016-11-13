@@ -289,8 +289,8 @@ static int gsmi_exec(u8 func, u8 sub)
 	return rc;
 }
 
-static efi_status_t gsmi_get_variable(efi_char16_t *name,
-				      efi_guid_t *vendor, u32 *attr,
+static efi_status_t gsmi_get_variable(const efi_char16_t *name,
+				      const efi_guid_t *vendor, u32 *attr,
 				      unsigned long *data_size,
 				      void *data)
 {
@@ -410,11 +410,11 @@ static efi_status_t gsmi_get_next_variable(unsigned long *name_size,
 	return ret;
 }
 
-static efi_status_t gsmi_set_variable(efi_char16_t *name,
-				      efi_guid_t *vendor,
+static efi_status_t gsmi_set_variable(const efi_char16_t *name,
+				      const efi_guid_t *vendor,
 				      u32 attr,
 				      unsigned long data_size,
-				      void *data)
+				      const void *data)
 {
 	struct gsmi_nvram_var_param param = {
 		.name_ptr = gsmi_dev.name_buf->address,

@@ -136,8 +136,8 @@ static efi_status_t virt_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
 	return status;
 }
 
-static efi_status_t virt_efi_get_variable(efi_char16_t *name,
-					  efi_guid_t *vendor,
+static efi_status_t virt_efi_get_variable(const efi_char16_t *name,
+					  const efi_guid_t *vendor,
 					  u32 *attr,
 					  unsigned long *data_size,
 					  void *data)
@@ -165,11 +165,11 @@ static efi_status_t virt_efi_get_next_variable(unsigned long *name_size,
 	return status;
 }
 
-static efi_status_t virt_efi_set_variable(efi_char16_t *name,
-					  efi_guid_t *vendor,
+static efi_status_t virt_efi_set_variable(const efi_char16_t *name,
+					  const efi_guid_t *vendor,
 					  u32 attr,
 					  unsigned long data_size,
-					  void *data)
+					  const void *data)
 {
 	efi_status_t status;
 
@@ -182,9 +182,10 @@ static efi_status_t virt_efi_set_variable(efi_char16_t *name,
 }
 
 static efi_status_t
-virt_efi_set_variable_nonblocking(efi_char16_t *name, efi_guid_t *vendor,
+virt_efi_set_variable_nonblocking(const efi_char16_t *name,
+				  const efi_guid_t *vendor,
 				  u32 attr, unsigned long data_size,
-				  void *data)
+				  const void *data)
 {
 	efi_status_t status;
 
