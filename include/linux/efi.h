@@ -293,10 +293,11 @@ typedef struct {
 	void *install_protocol_interface;
 	void *reinstall_protocol_interface;
 	void *uninstall_protocol_interface;
-	efi_status_t (*handle_protocol)(efi_handle_t, efi_guid_t *, void **);
+	efi_status_t (*handle_protocol)(efi_handle_t, const efi_guid_t *,
+					void **);
 	void *__reserved;
 	void *register_protocol_notify;
-	efi_status_t (*locate_handle)(int, efi_guid_t *, void *,
+	efi_status_t (*locate_handle)(int, const efi_guid_t *, void *,
 				      unsigned long *, efi_handle_t *);
 	void *locate_device_path;
 	efi_status_t (*install_configuration_table)(efi_guid_t *, void *);
@@ -315,7 +316,7 @@ typedef struct {
 	void *open_protocol_information;
 	void *protocols_per_handle;
 	void *locate_handle_buffer;
-	efi_status_t (*locate_protocol)(efi_guid_t *, void *, void **);
+	efi_status_t (*locate_protocol)(const efi_guid_t *, void *, void **);
 	void *install_multiple_protocol_interfaces;
 	void *uninstall_multiple_protocol_interfaces;
 	void *calculate_crc32;
@@ -1472,7 +1473,7 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 efi_status_t efi_parse_options(char *cmdline);
 
 efi_status_t efi_setup_gop(efi_system_table_t *sys_table_arg,
-			   struct screen_info *si, efi_guid_t *proto,
+			   struct screen_info *si, const efi_guid_t *proto,
 			   unsigned long size);
 
 bool efi_runtime_disabled(void);

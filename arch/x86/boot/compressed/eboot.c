@@ -43,13 +43,12 @@ static inline efi_status_t __open_volume32(void *__image, void **__fh)
 	efi_file_io_interface_t *io;
 	efi_loaded_image_32_t *image = __image;
 	efi_file_handle_32_t *fh;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
 	efi_status_t status;
 	void *handle = (void *)(unsigned long)image->device_handle;
 	unsigned long func;
 
 	status = efi_call_early(handle_protocol, handle,
-				&fs_proto, (void **)&io);
+				&EFI_FILE_SYSTEM_GUID, (void **)&io);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table, "Failed to handle fs_proto\n");
 		return status;
@@ -69,13 +68,12 @@ static inline efi_status_t __open_volume64(void *__image, void **__fh)
 	efi_file_io_interface_t *io;
 	efi_loaded_image_64_t *image = __image;
 	efi_file_handle_64_t *fh;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
 	efi_status_t status;
 	void *handle = (void *)(unsigned long)image->device_handle;
 	unsigned long func;
 
 	status = efi_call_early(handle_protocol, handle,
-				&fs_proto, (void **)&io);
+				&EFI_FILE_SYSTEM_GUID, (void **)&io);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table, "Failed to handle fs_proto\n");
 		return status;
@@ -173,7 +171,6 @@ setup_efi_pci32(struct boot_params *params, void **pci_handle,
 		unsigned long size)
 {
 	efi_pci_io_protocol_32 *pci = NULL;
-	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	u32 *handles = (u32 *)(unsigned long)pci_handle;
 	efi_status_t status;
 	unsigned long nr_pci;
@@ -191,7 +188,8 @@ setup_efi_pci32(struct boot_params *params, void **pci_handle,
 		u32 h = handles[i];
 
 		status = efi_call_early(handle_protocol, h,
-					&pci_proto, (void **)&pci);
+					&EFI_PCI_IO_PROTOCOL_GUID,
+					(void **)&pci);
 
 		if (status != EFI_SUCCESS)
 			continue;
@@ -280,7 +278,6 @@ setup_efi_pci64(struct boot_params *params, void **pci_handle,
 		unsigned long size)
 {
 	efi_pci_io_protocol_64 *pci = NULL;
-	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	u64 *handles = (u64 *)(unsigned long)pci_handle;
 	efi_status_t status;
 	unsigned long nr_pci;
@@ -298,7 +295,8 @@ setup_efi_pci64(struct boot_params *params, void **pci_handle,
 		u64 h = handles[i];
 
 		status = efi_call_early(handle_protocol, h,
-					&pci_proto, (void **)&pci);
+					&EFI_PCI_IO_PROTOCOL_GUID,
+					(void **)&pci);
 
 		if (status != EFI_SUCCESS)
 			continue;
@@ -333,12 +331,12 @@ static void setup_efi_pci(struct boot_params *params)
 {
 	efi_status_t status;
 	void **pci_handle = NULL;
-	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
 	unsigned long size = 0;
 
 	status = efi_call_early(locate_handle,
 				EFI_LOCATE_BY_PROTOCOL,
-				&pci_proto, NULL, &size, pci_handle);
+				&EFI_PCI_IO_PROTOCOL_GUID,
+				NULL, &size, pci_handle);
 
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		status = efi_call_early(allocate_pool,
@@ -351,7 +349,8 @@ static void setup_efi_pci(struct boot_params *params)
 		}
 
 		status = efi_call_early(locate_handle,
-					EFI_LOCATE_BY_PROTOCOL, &pci_proto,
+					EFI_LOCATE_BY_PROTOCOL,
+					&EFI_PCI_IO_PROTOCOL_GUID,
 					NULL, &size, pci_handle);
 	}
 
@@ -369,13 +368,13 @@ free_handle:
 
 static void retrieve_apple_device_properties(struct boot_params *boot_params)
 {
-	efi_guid_t guid = APPLE_PROPERTIES_PROTOCOL_GUID;
 	struct setup_data *data, *new;
 	efi_status_t status;
 	u32 size = 0;
 	void *p;
 
-	status = efi_call_early(locate_protocol, &guid, NULL, &p);
+	status = efi_call_early(locate_protocol,
+				&APPLE_PROPERTIES_PROTOCOL_GUID, NULL, &p);
 	if (status != EFI_SUCCESS)
 		return;
 
@@ -434,7 +433,7 @@ static efi_status_t
 setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 {
 	struct efi_uga_draw_protocol *uga = NULL, *first_uga;
-	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
+	const efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	unsigned long nr_ugas;
 	u32 *handles = (u32 *)uga_handle;;
 	efi_status_t status = EFI_INVALID_PARAMETER;
@@ -443,7 +442,6 @@ setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 	first_uga = NULL;
 	nr_ugas = size / sizeof(u32);
 	for (i = 0; i < nr_ugas; i++) {
-		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
 		u32 w, h, depth, refresh;
 		void *pciio;
 		u32 handle = handles[i];
@@ -453,7 +451,8 @@ setup_uga32(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 		if (status != EFI_SUCCESS)
 			continue;
 
-		efi_call_early(handle_protocol, handle, &pciio_proto, &pciio);
+		efi_call_early(handle_protocol, handle,
+			       &EFI_PCI_IO_PROTOCOL_GUID, &pciio);
 
 		status = efi_early->call((unsigned long)uga->get_mode, uga,
 					 &w, &h, &depth, &refresh);
@@ -479,7 +478,7 @@ static efi_status_t
 setup_uga64(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 {
 	struct efi_uga_draw_protocol *uga = NULL, *first_uga;
-	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
+	const efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	unsigned long nr_ugas;
 	u64 *handles = (u64 *)uga_handle;;
 	efi_status_t status = EFI_INVALID_PARAMETER;
@@ -488,7 +487,6 @@ setup_uga64(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 	first_uga = NULL;
 	nr_ugas = size / sizeof(u64);
 	for (i = 0; i < nr_ugas; i++) {
-		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
 		u32 w, h, depth, refresh;
 		void *pciio;
 		u64 handle = handles[i];
@@ -498,7 +496,8 @@ setup_uga64(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 		if (status != EFI_SUCCESS)
 			continue;
 
-		efi_call_early(handle_protocol, handle, &pciio_proto, &pciio);
+		efi_call_early(handle_protocol, handle,
+			       &EFI_PCI_IO_PROTOCOL_GUID, &pciio);
 
 		status = efi_early->call((unsigned long)uga->get_mode, uga,
 					 &w, &h, &depth, &refresh);
@@ -523,8 +522,8 @@ setup_uga64(void **uga_handle, unsigned long size, u32 *width, u32 *height)
 /*
  * See if we have Universal Graphics Adapter (UGA) protocol
  */
-static efi_status_t setup_uga(struct screen_info *si, efi_guid_t *uga_proto,
-			      unsigned long size)
+static efi_status_t setup_uga(struct screen_info *si,
+			      const efi_guid_t *uga_proto, unsigned long size)
 {
 	efi_status_t status;
 	u32 width, height;
@@ -575,9 +574,9 @@ free_handle:
 
 void setup_graphics(struct boot_params *boot_params)
 {
-	efi_guid_t graphics_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+	const efi_guid_t graphics_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 	struct screen_info *si;
-	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
+	const efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
 	efi_status_t status;
 	unsigned long size;
 	void **gop_handle = NULL;
@@ -618,7 +617,6 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	struct setup_header *hdr;
 	efi_loaded_image_t *image;
 	void *options, *handle;
-	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
 	efi_status_t status;
 	char *cmdline_ptr;
@@ -642,7 +640,7 @@ struct boot_params *make_boot_params(struct efi_config *c)
 		setup_boot_services32(efi_early);
 
 	status = efi_call_early(handle_protocol, handle,
-				&proto, (void *)&image);
+				&LOADED_IMAGE_PROTOCOL_GUID, (void *)&image);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table, "Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
 		return NULL;

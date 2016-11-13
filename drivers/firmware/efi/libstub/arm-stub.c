@@ -71,12 +71,11 @@ efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
 	efi_file_io_interface_t *io;
 	efi_loaded_image_t *image = __image;
 	efi_file_handle_t *fh;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
 	efi_status_t status;
 	void *handle = (void *)(unsigned long)image->device_handle;
 
-	status = sys_table_arg->boottime->handle_protocol(handle,
-				 &fs_proto, (void **)&io);
+	status = efi_call_early(handle_protocol, handle,
+				&EFI_FILE_SYSTEM_GUID, (void **)&io);
 	if (status != EFI_SUCCESS) {
 		efi_printk(sys_table_arg, "Failed to handle fs_proto\n");
 		return status;
@@ -101,7 +100,7 @@ void efi_char16_printk(efi_system_table_t *sys_table_arg,
 
 static struct screen_info *setup_graphics(efi_system_table_t *sys_table_arg)
 {
-	efi_guid_t gop_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+	const efi_guid_t gop_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 	efi_status_t status;
 	unsigned long size;
 	void **gop_handle = NULL;
@@ -153,7 +152,6 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	char *cmdline_ptr = NULL;
 	int cmdline_size = 0;
 	unsigned long new_fdt_addr;
-	efi_guid_t loaded_image_proto = LOADED_IMAGE_PROTOCOL_GUID;
 	unsigned long reserve_addr = 0;
 	unsigned long reserve_size = 0;
 	int secure_boot = 0;
@@ -175,7 +173,7 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	 * line.
 	 */
 	status = sys_table->boottime->handle_protocol(handle,
-					&loaded_image_proto, (void *)&image);
+				&LOADED_IMAGE_PROTOCOL_GUID, (void *)&image);
 	if (status != EFI_SUCCESS) {
 		pr_efi_err(sys_table, "Failed to get loaded image protocol\n");
 		goto fail;

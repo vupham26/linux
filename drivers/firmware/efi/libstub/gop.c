@@ -111,7 +111,7 @@ __gop_query32(efi_system_table_t *sys_table_arg,
 
 static efi_status_t
 setup_gop32(efi_system_table_t *sys_table_arg, struct screen_info *si,
-            efi_guid_t *proto, unsigned long size, void **gop_handle)
+	    const efi_guid_t *proto, unsigned long size, void **gop_handle)
 {
 	struct efi_graphics_output_protocol_32 *gop32, *first_gop;
 	unsigned long nr_gops;
@@ -131,7 +131,6 @@ setup_gop32(efi_system_table_t *sys_table_arg, struct screen_info *si,
 	nr_gops = size / sizeof(u32);
 	for (i = 0; i < nr_gops; i++) {
 		struct efi_graphics_output_mode_info *info = NULL;
-		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
 		bool conout_found = false;
 		void *dummy = NULL;
 		efi_handle_t h = (efi_handle_t)(unsigned long)handles[i];
@@ -143,7 +142,7 @@ setup_gop32(efi_system_table_t *sys_table_arg, struct screen_info *si,
 			continue;
 
 		status = efi_call_early(handle_protocol, h,
-					&conout_proto, &dummy);
+					&EFI_CONSOLE_OUT_DEVICE_GUID, &dummy);
 		if (status == EFI_SUCCESS)
 			conout_found = true;
 
@@ -228,7 +227,7 @@ __gop_query64(efi_system_table_t *sys_table_arg,
 
 static efi_status_t
 setup_gop64(efi_system_table_t *sys_table_arg, struct screen_info *si,
-	    efi_guid_t *proto, unsigned long size, void **gop_handle)
+	    const efi_guid_t *proto, unsigned long size, void **gop_handle)
 {
 	struct efi_graphics_output_protocol_64 *gop64, *first_gop;
 	unsigned long nr_gops;
@@ -248,7 +247,6 @@ setup_gop64(efi_system_table_t *sys_table_arg, struct screen_info *si,
 	nr_gops = size / sizeof(u64);
 	for (i = 0; i < nr_gops; i++) {
 		struct efi_graphics_output_mode_info *info = NULL;
-		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
 		bool conout_found = false;
 		void *dummy = NULL;
 		efi_handle_t h = (efi_handle_t)(unsigned long)handles[i];
@@ -260,7 +258,7 @@ setup_gop64(efi_system_table_t *sys_table_arg, struct screen_info *si,
 			continue;
 
 		status = efi_call_early(handle_protocol, h,
-					&conout_proto, &dummy);
+					&EFI_CONSOLE_OUT_DEVICE_GUID, &dummy);
 		if (status == EFI_SUCCESS)
 			conout_found = true;
 
@@ -323,7 +321,7 @@ out:
  * See if we have Graphics Output Protocol
  */
 efi_status_t efi_setup_gop(efi_system_table_t *sys_table_arg,
-			   struct screen_info *si, efi_guid_t *proto,
+			   struct screen_info *si, const efi_guid_t *proto,
 			   unsigned long size)
 {
 	efi_status_t status;
