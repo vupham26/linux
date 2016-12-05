@@ -265,7 +265,6 @@ static int efi_pstore_write(enum pstore_type_id type,
 {
 	char name[DUMP_NAME_LEN];
 	efi_char16_t efi_name[DUMP_NAME_LEN];
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	int i, ret = 0;
 
 	sprintf(name, "dump-type%u-%u-%d-%lu-%c", type, part, count,
@@ -274,7 +273,8 @@ static int efi_pstore_write(enum pstore_type_id type,
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		efi_name[i] = name[i];
 
-	efivar_entry_set_safe(efi_name, vendor, PSTORE_EFI_ATTRIBUTES,
+	efivar_entry_set_safe(efi_name, LINUX_EFI_CRASH_GUID,
+			      PSTORE_EFI_ATTRIBUTES,
 			      !pstore_cannot_block_path(reason),
 			      size, psi->buf);
 

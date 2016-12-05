@@ -34,7 +34,7 @@
 #include "task.h"
 #include "probe_roms.h"
 
-static efi_char16_t isci_efivar_name[] = {
+static const efi_char16_t isci_efivar_name[] = {
 	'R', 's', 't', 'S', 'c', 'u', 'O'
 };
 

@@ -66,7 +66,6 @@ static int read_efi_var(const char *name, unsigned long *size,
 {
 	efi_status_t status;
 	efi_char16_t *uni_name;
-	efi_guid_t guid;
 	unsigned long temp_size;
 	void *temp_buffer;
 	void *data;
@@ -95,13 +94,10 @@ static int read_efi_var(const char *name, unsigned long *size,
 	for (i = 0; name[i]; i++)
 		uni_name[i] = name[i];
 
-	/* need a variable for our GUID */
-	guid = HFI1_EFIVAR_GUID;
-
 	/* call into EFI runtime services */
 	status = efi.get_variable(
 			uni_name,
-			&guid,
+			&HFI1_EFIVAR_GUID,
 			NULL,
 			&temp_size,
 			temp_buffer);

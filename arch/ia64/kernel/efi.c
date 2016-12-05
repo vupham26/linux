@@ -919,22 +919,15 @@ int __init
 efi_uart_console_only(void)
 {
 	efi_status_t status;
-	char *s, name[] = "ConOut";
-	efi_guid_t guid = EFI_GLOBAL_VARIABLE_GUID;
-	efi_char16_t *utf16, name_utf16[32];
+	const char name[] = "ConOut";
+	const efi_char16_t name_utf16[] = { 'C', 'o', 'n', 'O', 'u', 't', 0 };
 	unsigned char data[1024];
 	unsigned long size = sizeof(data);
 	struct efi_generic_dev_path *hdr, *end_addr;
 	int uart = 0;
 
-	/* Convert to UTF-16 */
-	utf16 = name_utf16;
-	s = name;
-	while (*s)
-		*utf16++ = *s++ & 0x7f;
-	*utf16 = 0;
-
-	status = efi.get_variable(name_utf16, &guid, NULL, &size, data);
+	status = efi.get_variable(name_utf16, &EFI_GLOBAL_VARIABLE_GUID,
+				  NULL, &size, data);
 	if (status != EFI_SUCCESS) {
 		printk(KERN_ERR "No EFI %s variable?\n", name);
 		return 0;

@@ -32,7 +32,6 @@ static void efibc_str_to_str16(const char *str, efi_char16_t *str16)
 static int efibc_set_variable(const char *name, const char *value)
 {
 	int ret;
-	efi_guid_t guid = LINUX_EFI_LOADER_ENTRY_GUID;
 	struct efivar_entry *entry;
 	size_t size = (strlen(value) + 1) * sizeof(efi_char16_t);
 
@@ -49,7 +48,7 @@ static int efibc_set_variable(const char *name, const char *value)
 
 	efibc_str_to_str16(name, entry->var.VariableName);
 	efibc_str_to_str16(value, (efi_char16_t *)entry->var.Data);
-	memcpy(&entry->var.VendorGuid, &guid, sizeof(guid));
+	entry->var.VendorGuid = LINUX_EFI_LOADER_ENTRY_GUID;
 
 	ret = efivar_entry_set(entry,
 			       EFI_VARIABLE_NON_VOLATILE
