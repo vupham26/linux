@@ -48,7 +48,7 @@ void efi_printk(efi_system_table_t *sys_table_arg, char *str)
 
 		ch[0] = *s8;
 		if (*s8 == '\n') {
-			efi_char16_t nl[2] = { '\r', 0 };
+			const efi_char16_t nl[2] = { '\r', 0 };
 			efi_char16_printk(sys_table_arg, nl);
 		}
 

@@ -97,7 +97,7 @@ efi_open_volume(efi_system_table_t *sys_table, void *__image, void **__fh)
 	return __open_volume32(__image, __fh);
 }
 
-void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
+void efi_char16_printk(efi_system_table_t *table, const efi_char16_t *str)
 {
 	efi_call_proto(efi_simple_text_output_protocol, output_string,
 		       efi_early->text_output, str);

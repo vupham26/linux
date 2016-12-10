@@ -90,7 +90,7 @@ efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
 }
 
 void efi_char16_printk(efi_system_table_t *sys_table_arg,
-			      efi_char16_t *str)
+		       const efi_char16_t *str)
 {
 	struct efi_simple_text_output_protocol *out;
 

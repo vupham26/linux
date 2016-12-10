@@ -1257,7 +1257,7 @@ typedef struct {
 
 struct efi_simple_text_output_protocol {
 	void *reset;
-	efi_status_t (*output_string)(void *, void *);
+	efi_status_t (*output_string)(void *, const void *);
 	void *test_string;
 };
 
