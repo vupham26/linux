@@ -149,7 +149,6 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
 {
 	efi_guid_t rng_algo_raw = EFI_RNG_ALGORITHM_RAW;
-	efi_guid_t rng_table_guid = LINUX_EFI_RANDOM_SEED_TABLE_GUID;
 	struct efi_rng_protocol *rng;
 	struct linux_efi_random_seed *seed;
 	efi_status_t status;
@@ -179,8 +178,8 @@ efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
 		goto err_freepool;
 
 	seed->size = RANDOM_SEED_SIZE;
-	status = efi_call_early(install_configuration_table, &rng_table_guid,
-				seed);
+	status = efi_call_early(install_configuration_table,
+				&LINUX_EFI_RANDOM_SEED_TABLE_GUID, seed);
 	if (status != EFI_SUCCESS)
 		goto err_freepool;
 

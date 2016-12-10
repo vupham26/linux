@@ -300,7 +300,7 @@ typedef struct {
 	efi_status_t (*locate_handle)(int, const efi_guid_t *, void *,
 				      unsigned long *, efi_handle_t *);
 	void *locate_device_path;
-	efi_status_t (*install_configuration_table)(efi_guid_t *, void *);
+	efi_status_t (*install_configuration_table)(const efi_guid_t *, void *);
 	void *load_image;
 	void *start_image;
 	void *exit;
