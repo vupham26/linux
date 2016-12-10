@@ -838,7 +838,7 @@ typedef struct _efi_file_handle {
 	void *write;
 	void *get_position;
 	void *set_position;
-	efi_status_t (*get_info)(struct _efi_file_handle *, efi_guid_t *,
+	efi_status_t (*get_info)(struct _efi_file_handle *, const efi_guid_t *,
 			unsigned long *, void *);
 	void *set_info;
 	void *flush;
