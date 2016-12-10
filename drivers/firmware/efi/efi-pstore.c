@@ -46,7 +46,6 @@ static inline u64 generic_id(unsigned long timestamp,
 
 static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 {
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	struct pstore_read_data *cb_data = data;
 	char name[DUMP_NAME_LEN], data_type;
 	int i;
@@ -54,7 +53,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 	unsigned int part;
 	unsigned long time, size;
 
-	if (efi_guidcmp(entry->var.VendorGuid, vendor))
+	if (efi_guidcmp(entry->var.VendorGuid, LINUX_EFI_CRASH_GUID))
 		return 0;
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
@@ -299,14 +298,13 @@ struct pstore_erase_data {
 static int efi_pstore_erase_func(struct efivar_entry *entry, void *data)
 {
 	struct pstore_erase_data *ed = data;
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	efi_char16_t efi_name_old[DUMP_NAME_LEN];
 	efi_char16_t *efi_name = ed->name;
 	unsigned long ucs2_len = ucs2_strlen(ed->name);
 	char name_old[DUMP_NAME_LEN];
 	int i;
 
-	if (efi_guidcmp(entry->var.VendorGuid, vendor))
+	if (efi_guidcmp(entry->var.VendorGuid, LINUX_EFI_CRASH_GUID))
 		return 0;
 
 	if (ucs2_strncmp(entry->var.VariableName,
