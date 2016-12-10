@@ -17,7 +17,7 @@ struct efi_rng_protocol {
 	efi_status_t (*get_info)(struct efi_rng_protocol *,
 				 unsigned long *, efi_guid_t *);
 	efi_status_t (*get_rng)(struct efi_rng_protocol *,
-				efi_guid_t *, unsigned long, u8 *out);
+				const efi_guid_t *, unsigned long, u8 *out);
 };
 
 efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table_arg,
@@ -148,7 +148,6 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 
 efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
 {
-	efi_guid_t rng_algo_raw = EFI_RNG_ALGORITHM_RAW;
 	struct efi_rng_protocol *rng;
 	struct linux_efi_random_seed *seed;
 	efi_status_t status;
@@ -164,7 +163,7 @@ efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = rng->get_rng(rng, &rng_algo_raw, RANDOM_SEED_SIZE,
+	status = rng->get_rng(rng, &EFI_RNG_ALGORITHM_RAW, RANDOM_SEED_SIZE,
 			      seed->bits);
 	if (status == EFI_UNSUPPORTED)
 		/*
