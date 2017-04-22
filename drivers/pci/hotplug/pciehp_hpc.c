@@ -34,6 +34,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/slab.h>
@@ -201,6 +202,7 @@ static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
 	slot_ctrl |= (cmd & mask);
 	ctrl->cmd_busy = 1;
 	smp_mb();
+	pm_runtime_get_sync(&pdev->dev);
 	pcie_capability_write_word(pdev, PCI_EXP_SLTCTL, slot_ctrl);
 	ctrl->cmd_started = jiffies;
 	ctrl->slot_ctrl = slot_ctrl;
@@ -209,8 +211,13 @@ static void pcie_do_write_cmd(struct controller *ctrl, u16 cmd,
 	 * Optionally wait for the hardware to be ready for a new command,
 	 * indicating completion of the above issued command.
 	 */
-	if (wait)
+	if (wait) {
 		pcie_wait_cmd(ctrl);
+		pm_runtime_put(&pdev->dev);
+	} else {
+		pm_runtime_put_noidle(&pdev->dev);
+		pm_schedule_suspend(&pdev->dev, 1000);
+	}
 
 out:
 	mutex_unlock(&ctrl->ctrl_lock);
