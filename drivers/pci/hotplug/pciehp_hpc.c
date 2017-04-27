@@ -86,6 +86,7 @@ static inline int pciehp_request_irq(struct controller *ctrl)
 	if (pciehp_poll_mode) {
 		init_timer(&ctrl->poll_timer);
 		start_int_poll_timer(ctrl, 10);
+		pm_runtime_get(&ctrl->pcie->port->dev);
 		return 0;
 	}
 
@@ -99,9 +100,10 @@ static inline int pciehp_request_irq(struct controller *ctrl)
 
 static inline void pciehp_free_irq(struct controller *ctrl)
 {
-	if (pciehp_poll_mode)
+	if (pciehp_poll_mode) {
 		del_timer_sync(&ctrl->poll_timer);
-	else
+		pm_runtime_put(&ctrl->pcie->port->dev);
+	} else
 		free_irq(ctrl->pcie->irq, ctrl);
 }
 
