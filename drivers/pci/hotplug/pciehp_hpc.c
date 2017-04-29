@@ -369,7 +369,9 @@ int pciehp_get_raw_indicator_status(struct hotplug_slot *hotplug_slot,
 	struct pci_dev *pdev = ctrl_dev(slot->ctrl);
 	u16 slot_ctrl;
 
+	pm_runtime_get_sync(&pdev->dev);
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
+	pm_runtime_put(&pdev->dev);
 	*status = (slot_ctrl & (PCI_EXP_SLTCTL_AIC | PCI_EXP_SLTCTL_PIC)) >> 6;
 	return 0;
 }
@@ -380,7 +382,9 @@ void pciehp_get_attention_status(struct slot *slot, u8 *status)
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_ctrl;
 
+	pm_runtime_get_sync(&pdev->dev);
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
+	pm_runtime_put(&pdev->dev);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x, value read %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_ctrl);
 
@@ -406,7 +410,9 @@ void pciehp_get_power_status(struct slot *slot, u8 *status)
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_ctrl;
 
+	pm_runtime_get_sync(&pdev->dev);
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
+	pm_runtime_put(&pdev->dev);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x value read %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_ctrl);
 
@@ -428,7 +434,9 @@ void pciehp_get_latch_status(struct slot *slot, u8 *status)
 	struct pci_dev *pdev = ctrl_dev(slot->ctrl);
 	u16 slot_status;
 
+	pm_runtime_get_sync(&pdev->dev);
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
+	pm_runtime_put(&pdev->dev);
 	*status = !!(slot_status & PCI_EXP_SLTSTA_MRLSS);
 }
 
@@ -437,7 +445,9 @@ void pciehp_get_adapter_status(struct slot *slot, u8 *status)
 	struct pci_dev *pdev = ctrl_dev(slot->ctrl);
 	u16 slot_status;
 
+	pm_runtime_get_sync(&pdev->dev);
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
+	pm_runtime_put(&pdev->dev);
 	*status = !!(slot_status & PCI_EXP_SLTSTA_PDS);
 }
 
