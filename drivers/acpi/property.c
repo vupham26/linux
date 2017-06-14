@@ -15,7 +15,9 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/dmi.h>
 #include <linux/export.h>
+#include <linux/uuid.h>
 
 #include "internal.h"
 
@@ -34,6 +36,124 @@ static const u8 ads_uuid[16] = {
 	0xe6, 0xe3, 0xb8, 0xdb, 0x86, 0x58, 0xa6, 0x4b,
 	0x87, 0x95, 0x13, 0x19, 0xf5, 0x2a, 0x96, 0x6b
 };
+/* Apple _DSM device properties GUID */
+static const guid_t apple_prp_guid =
+	GUID_INIT(0xA0B5B7C6, 0x1318, 0x441C,
+		  0xB0, 0xC9, 0xFE, 0x69, 0x5E, 0xAF, 0x94, 0x9B);
+
+/**
+ * acpi_retrieve_apple_properties - retrieve and convert Apple _DSM properties
+ * @adev: ACPI device for which to retrieve the properties
+ *
+ * Invoke Apple's custom _DSM once to check the protocol version and once more
+ * to retrieve the properties.  They are marshalled up in a single package as
+ * alternating key/value elements, unlike _DSD which stores them as a package
+ * of 2-element packages.  Convert to _DSD format and make them available under
+ * the primary fwnode.
+ */
+static void acpi_retrieve_apple_properties(struct acpi_device *adev)
+{
+	unsigned int i, j, newsize = 0, numprops, skipped = 0;
+	union acpi_object *props, *newprops;
+	void *free_space;
+
+	if (!IS_ENABLED(CONFIG_X86) || !dmi_match(DMI_SYS_VENDOR, "Apple Inc."))
+		return;
+
+	props = acpi_evaluate_dsm_typed(adev->handle, &apple_prp_guid, 1, 0,
+					NULL, ACPI_TYPE_BUFFER);
+	if (!props)
+		return;
+
+	if (!props->buffer.length || props->buffer.pointer[0] != 3) {
+		acpi_handle_info(adev->handle, FW_INFO
+				 "unsupported properties version %*ph\n",
+				 props->buffer.length, props->buffer.pointer);
+		goto out_free;
+	}
+
+	ACPI_FREE(props);
+	props = acpi_evaluate_dsm_typed(adev->handle, &apple_prp_guid, 1, 1,
+					NULL, ACPI_TYPE_PACKAGE);
+	if (!props)
+		return;
+
+	/* newsize = key length + value length of each tuple */
+	numprops = props->package.count / 2;
+	for (i = 0; i < numprops; i++) {
+		union acpi_object *key = &props->package.elements[i * 2];
+		union acpi_object *val = &props->package.elements[i * 2 + 1];
+
+		if ( key->type != ACPI_TYPE_STRING ||
+		    (val->type != ACPI_TYPE_INTEGER &&
+		     val->type != ACPI_TYPE_BUFFER)) {
+			key->type = ACPI_TYPE_ANY; /* mark as to be skipped */
+			skipped++;
+			continue;
+		}
+		newsize += key->string.length + 1;
+		if ( val->type == ACPI_TYPE_BUFFER)
+			newsize += val->buffer.length;
+	}
+
+	if (skipped)
+		acpi_handle_info(adev->handle, FW_INFO
+				 "skipped %u properties: wrong type\n",
+				 skipped);
+	if (skipped == numprops)
+		goto out_free;
+
+	/* newsize += top-level package + 3 objects for each key/value tuple */
+	newsize	+= (1 + 3 * (numprops - skipped)) * sizeof(union acpi_object);
+	newprops = ACPI_ALLOCATE_ZEROED(newsize);
+	if (!newprops)
+		goto out_free;
+
+	/* layout: top-level package | packages | key/value tuples | strings */
+	newprops->type = ACPI_TYPE_PACKAGE;
+	newprops->package.count = numprops - skipped;
+	newprops->package.elements = &newprops[1];
+	free_space = &newprops[1 + 3 * (numprops - skipped)];
+
+	for (i = 0, j = 0; i < numprops; i++) {
+		union acpi_object *key = &props->package.elements[i * 2];
+		union acpi_object *val = &props->package.elements[i * 2 + 1];
+		unsigned int k = (1 + numprops - skipped) + j * 2;
+		unsigned int v = k + 1; /* index into newprops */
+
+		if (key->type == ACPI_TYPE_ANY)
+			continue; /* skipped */
+
+		newprops[1 + j].type = ACPI_TYPE_PACKAGE;
+		newprops[1 + j].package.count = 2;
+		newprops[1 + j].package.elements = &newprops[k];
+
+		newprops[k].type = ACPI_TYPE_STRING;
+		newprops[k].string.length = key->string.length;
+		newprops[k].string.pointer = free_space;
+		memcpy(free_space, key->string.pointer, key->string.length);
+		free_space += key->string.length + 1;
+
+		newprops[v].type = val->type;
+		if (val->type == ACPI_TYPE_INTEGER)
+			newprops[v].integer.value = val->integer.value;
+		else {
+			newprops[v].buffer.length = val->buffer.length;
+			newprops[v].buffer.pointer = free_space;
+			memcpy(free_space, val->buffer.pointer,
+			       val->buffer.length);
+			free_space += val->buffer.length;
+		}
+		j++; /* not incremented for skipped properties */
+	}
+	WARN_ON(free_space != (void *)newprops + newsize);
+
+	adev->data.properties = newprops;
+	adev->data.pointer = newprops;
+
+out_free:
+	ACPI_FREE(props);
+}
 
 static bool acpi_enumerate_nondev_subnodes(acpi_handle scope,
 					   const union acpi_object *desc,
@@ -376,6 +496,9 @@ void acpi_init_properties(struct acpi_device *adev)
 	if (acpi_of && !adev->flags.of_compatible_ok)
 		acpi_handle_info(adev->handle,
 			 ACPI_DT_NAMESPACE_HID " requires 'compatible' property\n");
+
+	if (!adev->data.pointer)
+		acpi_retrieve_apple_properties(adev);
 }
 
 static void acpi_destroy_nondev_subnodes(struct list_head *list)
