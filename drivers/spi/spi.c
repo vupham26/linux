@@ -21,6 +21,8 @@
 #include <linux/cache.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/dmi.h>
+#include <linux/math64.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
@@ -1661,6 +1663,29 @@ static void of_register_spi_devices(struct spi_master *master) { }
 #endif
 
 #ifdef CONFIG_ACPI
+static void acpi_spi_parse_apple_properties(struct spi_device *spi)
+{
+	struct acpi_device *dev = ACPI_COMPANION(&spi->dev);
+	const union acpi_object *o;
+
+	if (!acpi_dev_get_property(dev, "spiSclkPeriod", ACPI_TYPE_BUFFER, &o))
+		spi->max_speed_hz  = div64_u64(NSEC_PER_SEC,
+					       *(u64 *)o->buffer.pointer);
+
+	if (!acpi_dev_get_property(dev, "spiWordSize", ACPI_TYPE_BUFFER, &o))
+		spi->bits_per_word = *(u64 *)o->buffer.pointer;
+
+	if (!acpi_dev_get_property(dev, "spiBitOrder", ACPI_TYPE_BUFFER, &o) &&
+	    !*(u64 *)o->buffer.pointer)
+		spi->mode |= SPI_LSB_FIRST;
+	if (!acpi_dev_get_property(dev, "spiSPO", ACPI_TYPE_BUFFER, &o) &&
+	     *(u64 *)o->buffer.pointer)
+		spi->mode |= SPI_CPOL;
+	if (!acpi_dev_get_property(dev, "spiSPH", ACPI_TYPE_BUFFER, &o) &&
+	     *(u64 *)o->buffer.pointer)
+		spi->mode |= SPI_CPHA;
+}
+
 static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 {
 	struct spi_device *spi = data;
@@ -1733,6 +1758,11 @@ static acpi_status acpi_register_spi_device(struct spi_master *master,
 	ret = acpi_dev_get_resources(adev, &resource_list,
 				     acpi_spi_add_resource, spi);
 	acpi_dev_free_resource_list(&resource_list);
+
+	/* Zero ACPI resources?  Try Apple device properties instead. */
+	if (!ret && IS_ENABLED(CONFIG_X86) &&
+	    dmi_match(DMI_SYS_VENDOR, "Apple Inc."))
+		acpi_spi_parse_apple_properties(spi);
 
 	if (ret < 0 || !spi->max_speed_hz) {
 		spi_dev_put(spi);
