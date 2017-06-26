@@ -1444,6 +1444,12 @@ static bool acpi_is_spi_i2c_slave(struct acpi_device *device)
 	struct list_head resource_list;
 	bool is_spi_i2c_slave = false;
 
+	/* Macs use device properties in lieu of _CRS resources */
+	if (IS_ENABLED(CONFIG_X86) && dmi_match(DMI_SYS_VENDOR, "Apple Inc.") &&
+	    (device_property_present(&device->dev, "spiSclkPeriod") ||
+	     device_property_present(&device->dev, "i2cAddress")))
+		return true;
+
 	INIT_LIST_HEAD(&resource_list);
 	acpi_dev_get_resources(device, &resource_list, acpi_check_spi_i2c_slave,
 			       &is_spi_i2c_slave);
