@@ -389,6 +389,12 @@ extern int acpi_blacklisted(void);
 extern void acpi_osi_setup(char *str);
 extern bool acpi_osi_is_win8(void);
 
+#ifdef CONFIG_X86
+extern bool is_apple_system;
+#else
+#define is_apple_system false
+#endif
+
 #ifdef CONFIG_ACPI_NUMA
 int acpi_map_pxm_to_online_node(int pxm);
 int acpi_get_node(acpi_handle handle);

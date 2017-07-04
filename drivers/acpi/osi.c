@@ -258,12 +258,16 @@ bool acpi_osi_is_win8(void)
 EXPORT_SYMBOL(acpi_osi_is_win8);
 
 #ifdef CONFIG_X86
+bool is_apple_system;
+EXPORT_SYMBOL(is_apple_system);
+
 static void __init acpi_osi_dmi_darwin(bool enable,
 				       const struct dmi_system_id *d)
 {
 	pr_notice("DMI detected to setup _OSI(\"Darwin\"): %s\n", d->ident);
 	osi_config.darwin_dmi = 1;
 	__acpi_osi_setup_darwin(enable);
+	is_apple_system = true;
 }
 
 static void __init acpi_osi_dmi_linux(bool enable,

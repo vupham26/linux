@@ -31,7 +31,6 @@
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/power_supply.h>
-#include <linux/dmi.h>
 
 #include "sbshc.h"
 #include "battery.h"
@@ -57,8 +56,6 @@ MODULE_LICENSE("GPL");
 static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
-
-static bool sbs_manager_broken;
 
 #define MAX_SBS_BAT			4
 #define ACPI_SBS_BLOCK_MAX		32
@@ -632,30 +629,11 @@ static void acpi_sbs_callback(void *context)
 	}
 }
 
-static int disable_sbs_manager(const struct dmi_system_id *d)
-{
-	sbs_manager_broken = true;
-	return 0;
-}
-
-static struct dmi_system_id acpi_sbs_dmi_table[] = {
-	{
-		.callback = disable_sbs_manager,
-		.ident = "Apple",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc.")
-		},
-	},
-	{ },
-};
-
 static int acpi_sbs_add(struct acpi_device *device)
 {
 	struct acpi_sbs *sbs;
 	int result = 0;
 	int id;
-
-	dmi_check_system(acpi_sbs_dmi_table);
 
 	sbs = kzalloc(sizeof(struct acpi_sbs), GFP_KERNEL);
 	if (!sbs) {
@@ -677,7 +655,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 
 	result = 0;
 
-	if (!sbs_manager_broken) {
+	if (!is_apple_system) {
 		result = acpi_manager_get_info(sbs);
 		if (!result) {
 			sbs->manager_present = 1;

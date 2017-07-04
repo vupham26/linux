@@ -431,8 +431,7 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 	 * been called successfully. We know the feature set supported by the
 	 * platform, so avoid calling _OSC at all
 	 */
-
-	if (dmi_match(DMI_SYS_VENDOR, "Apple Inc.")) {
+	if (is_apple_system) {
 		root->osc_control_set = ~OSC_PCI_EXPRESS_PME_CONTROL;
 		decode_osc_control(root, "OS assumes control of",
 				   root->osc_control_set);
