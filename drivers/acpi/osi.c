@@ -257,6 +257,7 @@ bool acpi_osi_is_win8(void)
 }
 EXPORT_SYMBOL(acpi_osi_is_win8);
 
+#ifdef CONFIG_X86
 static void __init acpi_osi_dmi_darwin(bool enable,
 				       const struct dmi_system_id *d)
 {
@@ -312,6 +313,7 @@ static int __init dmi_disable_osi_win8(const struct dmi_system_id *d)
 
 	return 0;
 }
+#endif /* CONFIG_X86 */
 
 /*
  * Linux default _OSI response behavior is determined by this DMI table.
@@ -320,6 +322,7 @@ static int __init dmi_disable_osi_win8(const struct dmi_system_id *d)
  * by acpi_osi=!Linux/acpi_osi=!Darwin command line options.
  */
 static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
+#ifdef CONFIG_X86
 	{
 	.callback = dmi_disable_osi_vista,
 	.ident = "Fujitsu Siemens",
@@ -499,6 +502,7 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
 		},
 	},
+#endif /* CONFIG_X86 */
 	{}
 };
 
