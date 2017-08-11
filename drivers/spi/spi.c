@@ -720,8 +720,18 @@ int spi_register_board_info(struct spi_board_info const *info, unsigned n)
 
 /*-------------------------------------------------------------------------*/
 
+static void spi_delay(unsigned int usecs)
+{
+	if (usecs <= 10)
+		udelay(usecs);
+	else
+		usleep_range(usecs, usecs + DIV_ROUND_UP(usecs, 10));
+}
+
 static void spi_set_cs(struct spi_device *spi, bool enable)
 {
+	bool active = enable;
+
 	if (spi->mode & SPI_CS_HIGH)
 		enable = !enable;
 
@@ -734,6 +744,9 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 	} else if (spi->controller->set_cs) {
 		spi->controller->set_cs(spi, !enable);
 	}
+
+	if (active && spi->cs_to_clk_delay)
+		spi_delay(spi->cs_to_clk_delay);
 }
 
 #ifdef CONFIG_HAS_DMA
@@ -1069,14 +1082,8 @@ static int spi_transfer_one_message(struct spi_controller *ctlr,
 		if (msg->status != -EINPROGRESS)
 			goto out;
 
-		if (xfer->delay_usecs) {
-			u16 us = xfer->delay_usecs;
-
-			if (us <= 10)
-				udelay(us);
-			else
-				usleep_range(us, us + DIV_ROUND_UP(us, 10));
-		}
+		if (xfer->delay_usecs)
+			spi_delay(xfer->delay_usecs);
 
 		if (xfer->cs_change) {
 			if (list_is_last(&xfer->transfer_list,
@@ -1721,6 +1728,10 @@ static void acpi_spi_parse_apple_properties(struct spi_device *spi)
 	if (!acpi_dev_get_property(dev, "spiSPH", ACPI_TYPE_BUFFER, &obj)
 	    && obj->buffer.length == 8 &&  *(u64 *)obj->buffer.pointer)
 		spi->mode |= SPI_CPHA;
+
+	if (!acpi_dev_get_property(dev, "spiCSDelay", ACPI_TYPE_BUFFER, &obj)
+	    && obj->buffer.length == 8)
+		spi->cs_to_clk_delay = *(u64 *)obj->buffer.pointer;
 }
 
 static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)

@@ -127,7 +127,7 @@ void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
  *	for driver coldplugging, and in uevents used for hotplugging
  * @cs_gpio: gpio number of the chipselect line (optional, -ENOENT when
  *	when not using a GPIO line)
- *
+ * @cs_to_clk_delay: microseconds between CS active and first clock edge
  * @statistics: statistics for the spi_device
  *
  * A @spi_device is used to interchange data between an SPI slave
@@ -168,6 +168,7 @@ struct spi_device {
 	void			*controller_data;
 	char			modalias[SPI_NAME_SIZE];
 	int			cs_gpio;	/* chip select gpio */
+	u16			cs_to_clk_delay;
 
 	/* the statistics */
 	struct spi_statistics	statistics;
@@ -178,7 +179,6 @@ struct spi_device {
 	 *  - memory packing (12 bit samples into low bits, others zeroed)
 	 *  - priority
 	 *  - drop chipselect after each word
-	 *  - chipselect delays
 	 *  - ...
 	 */
 };
