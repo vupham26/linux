@@ -77,6 +77,9 @@ struct mcp320x_chip_info {
  * @transfer: SPI transfers used by @msg
  * @start_conv_msg: SPI message to start a conversion by briefly asserting CS
  * @start_conv_transfer: SPI transfer used by @start_conv_msg
+ * @continuous_conv: whether CS is permanently driven low such that conversions
+ *	take place continuously, obviating the need to explicitly start them
+ *	and wait for them to finish
  * @reg: regulator generating Vref
  * @lock: protects read sequences
  * @chip_info: ADC properties
@@ -90,6 +93,7 @@ struct mcp320x {
 
 	struct spi_message start_conv_msg;
 	struct spi_transfer start_conv_transfer;
+	bool continuous_conv;
 
 	struct regulator *reg;
 	struct mutex lock;
@@ -125,7 +129,7 @@ static int mcp320x_adc_conversion(struct mcp320x *adc, u8 channel,
 {
 	int ret;
 
-	if (adc->chip_info->conv_time) {
+	if (adc->chip_info->conv_time && !adc->continuous_conv) {
 		ret = spi_sync(adc->spi, &adc->start_conv_msg);
 		if (ret < 0)
 			return ret;
@@ -432,6 +436,8 @@ static int mcp320x_probe(struct spi_device *spi)
 		adc->start_conv_transfer.delay_usecs = 8;
 		spi_message_init_with_transfers(&adc->start_conv_msg,
 						&adc->start_conv_transfer, 1);
+		adc->continuous_conv = device_property_read_bool(&spi->dev,
+					"microchip,continuous-conversion");
 
 		/* perform two consecutive conversions to unwedge device */
 		mcp320x_adc_conversion(adc, 0, 1, device_index, &val);

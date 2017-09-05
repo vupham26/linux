@@ -46,6 +46,15 @@ Required properties:
 
 	- vref-supply:	Phandle to the external reference voltage supply.
 
+Optional properties:
+	- microchip,continuous-conversion (boolean):
+			Only applicable to MCP3550/1/3:  These ADCs have long
+			conversion times and therefore support "continuous
+			conversion mode" to allow retrieval of conversions
+			at any time without observing a delay.  The mode is
+			enabled by permanently driving CS low, e.g. by wiring
+			it to ground.
+
 Examples:
 spi_controller {
 	mcp3x0x@0 {
